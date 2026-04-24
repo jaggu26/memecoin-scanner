@@ -167,12 +167,33 @@ def _build_result(pair, score, signals, tech_score, tech_signals):
 @app.route("/api/search")
 @login_required
 def api_search():
-    q = request.args.get("q", "").strip()
-    if not q or len(q) < 1:
-        return jsonify({"results": [], "query": q, "by_address": False})
+    name    = request.args.get("name",    "").strip()
+    address = request.args.get("address", "").strip()
+    chain   = request.args.get("chain",   "").strip().lower()
 
-    by_address = _is_contract_address(q)
-    pairs = scanner.search_by_address(q) if by_address else scanner.search_pairs(q)
+    # Backwards compat: old single ?q= param
+    q = request.args.get("q", "").strip()
+    if q and not name and not address:
+        if _is_contract_address(q):
+            address = q
+        else:
+            name = q
+
+    if not name and not address and not chain:
+        return jsonify({"results": [], "by_address": False})
+
+    by_address = bool(address)
+    if address:
+        pairs = scanner.search_by_address(address)
+    elif name:
+        pairs = scanner.search_pairs(name)
+    else:
+        # Chain-only filter: search trending on that chain
+        pairs = scanner.search_pairs(f"{chain} meme") + scanner.search_pairs(f"{chain} trending")
+
+    # Filter by chain if specified
+    if chain:
+        pairs = [p for p in pairs if p.get("chainId", "").lower() == chain]
 
     results = []
     seen = set()
@@ -186,7 +207,7 @@ def api_search():
         results.append(_build_result(pair, score, signals, tech_score, tech_signals))
 
     results.sort(key=lambda x: x["score"], reverse=True)
-    return jsonify({"results": results, "query": q, "by_address": by_address})
+    return jsonify({"results": results, "by_address": by_address})
 
 @app.route("/api/backtest")
 @login_required

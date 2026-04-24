@@ -65,13 +65,24 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
 .tc-link{display:block;margin-top:7px;text-align:center;background:#1a2540;border-radius:6px;padding:4px;font-size:10px;font-weight:700;color:#a855f7;text-decoration:none;transition:.15s}
 .tc-link:hover{background:#2d1060;color:#c084fc}
 
-/* ── Search box ── */
-.search-wrap{position:relative;margin-bottom:4px}
-.search-input{width:100%;padding:10px 16px 10px 36px;background:#0c1220;border:1px solid #1a2540;border-radius:9px;color:#e2e8f0;font-size:13px;outline:none;transition:border-color .15s}
-.search-input:focus{border-color:#7c3aed}
-.search-input::placeholder{color:#334155}
-.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#475569;font-size:14px;pointer-events:none}
-.search-count{font-size:10px;color:#475569;margin-bottom:6px}
+/* ── Search panel ── */
+.search-panel{background:#0c1220;border:1px solid #1a2540;border-radius:12px;padding:14px 16px;margin-bottom:4px}
+.search-panel-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#475569;margin-bottom:10px}
+.search-fields{display:grid;grid-template-columns:1fr 1.6fr 1fr auto;gap:8px;align-items:end}
+@media(max-width:700px){.search-fields{grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto}}
+.sf-group{display:flex;flex-direction:column;gap:4px}
+.sf-label{font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.8px}
+.sf-input{padding:9px 12px;background:#080c14;border:1px solid #1a2540;border-radius:8px;color:#e2e8f0;font-size:12px;outline:none;transition:border-color .15s;width:100%}
+.sf-input:focus{border-color:#7c3aed;box-shadow:0 0 0 2px rgba(124,58,237,.1)}
+.sf-input::placeholder{color:#334155}
+.sf-select{padding:9px 12px;background:#080c14;border:1px solid #1a2540;border-radius:8px;color:#e2e8f0;font-size:12px;outline:none;cursor:pointer;width:100%}
+.sf-select:focus{border-color:#7c3aed}
+.search-actions{display:flex;gap:6px;align-items:flex-end}
+.btn-search{padding:9px 16px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:.15s}
+.btn-search:hover{opacity:.85}
+.btn-clear{padding:9px 12px;background:#1a2540;color:#64748b;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;transition:.15s}
+.btn-clear:hover{color:#94a3b8;background:#243050}
+.search-status{font-size:11px;color:#475569;margin-top:8px;min-height:16px}
 
 /* ── Tech score badge ── */
 .tech-badge{font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3)}
@@ -129,12 +140,38 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
     <div class="stat"><div class="stat-label">Scan #</div><div class="stat-val v-m" id="statCount">—</div></div>
   </div>
 
-  <!-- Search -->
-  <div class="search-wrap">
-    <span class="search-icon">🔍</span>
-    <input class="search-input" id="coinSearch" type="text" placeholder="Search by name, symbol or contract address (0x… / Solana address)" oninput="filterGrid()">
+  <!-- Search panel -->
+  <div class="search-panel">
+    <div class="search-panel-title">🔍 Search Tokens</div>
+    <div class="search-fields">
+      <div class="sf-group">
+        <label class="sf-label">Name / Symbol</label>
+        <input class="sf-input" id="sfName" type="text" placeholder="PEPE, DOGE, BONK…" autocomplete="off">
+      </div>
+      <div class="sf-group">
+        <label class="sf-label">Contract Address</label>
+        <input class="sf-input" id="sfAddress" type="text" placeholder="0x… or Solana address" autocomplete="off">
+      </div>
+      <div class="sf-group">
+        <label class="sf-label">Chain</label>
+        <select class="sf-select" id="sfChain">
+          <option value="">All Chains</option>
+          <option value="solana">Solana</option>
+          <option value="ethereum">Ethereum</option>
+          <option value="bsc">BSC</option>
+          <option value="base">Base</option>
+          <option value="polygon">Polygon</option>
+          <option value="arbitrum">Arbitrum</option>
+          <option value="avalanche">Avalanche</option>
+        </select>
+      </div>
+      <div class="search-actions">
+        <button class="btn-search" onclick="doSearch()">Search</button>
+        <button class="btn-clear" onclick="clearSearch()">✕</button>
+      </div>
+    </div>
+    <div class="search-status" id="searchStatus"></div>
   </div>
-  <div class="search-count" id="searchCount"></div>
 
   <!-- Token grid -->
   <div class="sec-label">All Tokens — Sorted by Breakout Score</div>
@@ -360,9 +397,8 @@ function renderScanner(data, scanCount) {
       <div class="now-sub">Scanning ${data.length} tokens. Auto-refreshes every 30 seconds.</div>`;
   }
 
-  // Token grid — don't override if user has an active search
-  const activeSearch = (document.getElementById('coinSearch')?.value || '').trim();
-  if (!activeSearch) renderGrid(data);
+  // Don't override grid if user has an active search
+  if (!searchActive) renderGrid(data);
 }
 
 // ── Backtest polling ──────────────────────────────────────────────────────────
@@ -457,48 +493,70 @@ function renderGrid(tokens) {
   }).join('');
 }
 
-// ── Search / Filter ───────────────────────────────────────────────────────────
-let searchTimer = null;
+// ── Search ────────────────────────────────────────────────────────────────────
+let searchActive = false;
 
-function filterGrid() {
-  const q = (document.getElementById('coinSearch')?.value || '').trim();
-  const countEl = document.getElementById('searchCount');
+async function doSearch() {
+  const name    = (document.getElementById('sfName')?.value    || '').trim();
+  const address = (document.getElementById('sfAddress')?.value || '').trim();
+  const chain   = (document.getElementById('sfChain')?.value   || '').trim();
+  const status  = document.getElementById('searchStatus');
 
-  if (!q) {
-    countEl.textContent = '';
-    renderGrid(scanData.slice(0, 24));
+  // If nothing filled, reset to live scanner
+  if (!name && !address && !chain) {
+    clearSearch();
     return;
   }
 
-  // Show loading state
-  countEl.textContent = 'Searching DexScreener…';
+  status.textContent = '⏳ Searching DexScreener…';
   document.getElementById('tokenGrid').innerHTML =
-    '<div class="empty" style="grid-column:1/-1">Searching all coins on DexScreener…</div>';
+    '<div class="empty" style="grid-column:1/-1">Searching…</div>';
 
-  // Debounce: wait 400ms after user stops typing
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(async () => {
-    try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      const results = data.results || [];
+  try {
+    const params = new URLSearchParams();
+    if (name)    params.set('name', name);
+    if (address) params.set('address', address);
+    if (chain)   params.set('chain', chain);
 
-      if (results.length) {
-        const byAddr = data.by_address;
-        countEl.textContent = byAddr
-          ? `${results.length} pair${results.length !== 1 ? 's' : ''} found for contract address`
-          : `${results.length} coin${results.length !== 1 ? 's' : ''} found on DexScreener`;
-        renderGrid(results);
-      } else {
-        countEl.textContent = `No coins found for "${q}"`;
-        document.getElementById('tokenGrid').innerHTML =
-          `<div class="empty" style="grid-column:1/-1">No coins found for "${q}" on DexScreener.</div>`;
-      }
-    } catch (err) {
-      countEl.textContent = 'Search error — try again';
+    const res  = await fetch(`/api/search?${params}`);
+    const data = await res.json();
+    let results = data.results || [];
+
+    // Client-side chain filter if chain selected and not already filtered server-side
+    if (chain && results.length) {
+      results = results.filter(r => r.chain?.toLowerCase() === chain.toLowerCase());
     }
-  }, 400);
+
+    if (results.length) {
+      const what = address ? 'contract address' : name ? `"${name}"` : chain;
+      status.textContent = `✅ ${results.length} token${results.length !== 1 ? 's' : ''} found for ${what}${chain && !address ? ' on ' + chain.toUpperCase() : ''}`;
+      searchActive = true;
+      renderGrid(results);
+    } else {
+      status.textContent = `❌ No tokens found. Try different name/address or chain.`;
+      document.getElementById('tokenGrid').innerHTML =
+        '<div class="empty" style="grid-column:1/-1">No tokens found. Try different filters.</div>';
+    }
+  } catch (err) {
+    status.textContent = '⚠️ Search error — please try again';
+  }
 }
+
+function clearSearch() {
+  document.getElementById('sfName').value    = '';
+  document.getElementById('sfAddress').value = '';
+  document.getElementById('sfChain').value   = '';
+  document.getElementById('searchStatus').textContent = '';
+  searchActive = false;
+  renderGrid(scanData);
+}
+
+// Allow pressing Enter in any search field
+['sfName', 'sfAddress'].forEach(id => {
+  document.getElementById(id)?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') doSearch();
+  });
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n) {
