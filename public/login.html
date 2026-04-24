@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ArbWatch — Login</title>
+  <title>Memecoin Scanner — Login</title>
   <style>
     * {
       margin: 0;
@@ -137,8 +137,8 @@
 <body>
   <div class="login-container">
     <div class="login-header">
-      <div class="logo">🚀 ArbWatch</div>
-      <div class="subtitle">Arbitrage Dashboard</div>
+      <div class="logo">💎 Memecoin Scanner</div>
+      <div class="subtitle">Breakout Detection & Backtesting</div>
     </div>
 
     <form id="loginForm">
@@ -201,8 +201,18 @@
         const data = await response.json();
 
         if (response.ok) {
+          // Store token and setup for future requests
           localStorage.setItem('auth_token', data.token);
-          window.location.href = '/';
+
+          // Add token to Authorization header for next request
+          window.fetch = (url, options = {}) => {
+            if (!options.headers) options.headers = {};
+            options.headers['Authorization'] = `Bearer ${localStorage.getItem('auth_token')}`;
+            return fetch.apply(window, [url, options]);
+          };
+
+          // Redirect to dashboard
+          setTimeout(() => { window.location.href = '/'; }, 100);
         } else {
           errorMsg.textContent = data.error || 'Invalid credentials';
           errorMsg.classList.add('show');
