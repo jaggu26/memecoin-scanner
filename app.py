@@ -40,7 +40,7 @@ def scanner_loop():
             # Broadcast to SSE clients
             payload = json.dumps({
                 "type": "scan",
-                "data": results[:30],
+                "data": results[:200],
                 "scan_count": state["scan_count"],
                 "ts": datetime.now().isoformat(),
             })
@@ -121,7 +121,7 @@ def api_scan():
         results = scanner.scan_once()
         state["scan_results"] = results
     return jsonify({
-        "results": state["scan_results"][:30],
+        "results": state["scan_results"][:200],
         "scan_count": state["scan_count"],
         "ts": datetime.now().isoformat(),
     })
@@ -208,7 +208,7 @@ def api_stream():
     if state["scan_results"]:
         initial = json.dumps({
             "type": "scan",
-            "data": state["scan_results"][:30],
+            "data": state["scan_results"][:200],
             "scan_count": state["scan_count"],
             "ts": datetime.now().isoformat(),
         })

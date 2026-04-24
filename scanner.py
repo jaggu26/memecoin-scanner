@@ -249,42 +249,84 @@ class BreakoutScanner:
 
         return max(0, min(10, score)), signals
 
-    # ── Main scan ────────────────────────────────────────────────────────────
+    # ── Extra DexScreener endpoints ──────────────────────────────────────────
 
-    def scan_once(self):
-        """Run one complete scan. Returns list of scored pairs."""
-        ts = datetime.now().strftime("%H:%M:%S")
-        print(f"\n[{ts}] 🔍 Scanning DexScreener…")
+    def get_top_boosted_tokens(self):
+        data = self._get(f"{self.DEXSCREENER_BASE}/token-boosts/top/v1")
+        return data if isinstance(data, list) else []
 
-        all_pairs = []
-        seen = set()
+    def get_latest_profiles(self):
+        data = self._get(f"{self.DEXSCREENER_BASE}/token-profiles/latest/v1")
+        return data if isinstance(data, list) else []
 
-        # 1. Boosted/trending tokens → fetch their pairs
-        boosted = self.get_boosted_tokens()
-        print(f"  Boosted tokens: {len(boosted)}")
-        for item in boosted[:20]:   # cap to avoid rate-limit
+    def _collect_from_token_list(self, token_list, seen, all_pairs, pairs_per_token=3):
+        """Fetch pairs for each token in a list, deduplicate into all_pairs."""
+        for item in token_list:
             chain   = item.get("chainId", "solana")
             address = item.get("tokenAddress", "")
             if not address:
                 continue
             pairs = self.get_token_pairs(chain, address)
-            for p in pairs[:2]:   # top 2 pairs per token
+            for p in pairs[:pairs_per_token]:
                 pid = p.get("pairAddress", "")
                 if pid and pid not in seen:
                     seen.add(pid)
                     all_pairs.append(p)
-            time.sleep(0.15)      # be polite to API
+            time.sleep(0.1)
 
-        # 2. Keyword searches for breakout memecoins
-        keywords = ["pepe", "doge", "cat", "ai", "moon", "pump", "wif", "bonk", "pippin", "river", "inx"]
+    # ── Main scan ────────────────────────────────────────────────────────────
+
+    def scan_once(self):
+        """Run one complete scan. Returns list of scored pairs."""
+        ts = datetime.now().strftime("%H:%M:%S")
+        print(f"\n[{ts}] 🔍 Scanning DexScreener (full coverage)…")
+
+        all_pairs = []
+        seen = set()
+
+        # 1. Latest boosted tokens
+        latest_boosted = self.get_boosted_tokens()
+        print(f"  Latest boosted: {len(latest_boosted)}")
+        self._collect_from_token_list(latest_boosted, seen, all_pairs)
+
+        # 2. Top boosted tokens (different set)
+        top_boosted = self.get_top_boosted_tokens()
+        print(f"  Top boosted: {len(top_boosted)}")
+        self._collect_from_token_list(top_boosted, seen, all_pairs)
+
+        # 3. Latest token profiles
+        profiles = self.get_latest_profiles()
+        print(f"  Latest profiles: {len(profiles)}")
+        self._collect_from_token_list(profiles, seen, all_pairs)
+
+        # 4. Chain-specific trending searches
+        chains = ["solana", "bsc", "ethereum", "base", "polygon", "arbitrum", "avalanche"]
+        chain_terms = ["meme", "trending", "new", "pump"]
+        for chain in chains:
+            for term in chain_terms:
+                pairs = self.search_pairs(f"{chain} {term}")
+                for p in pairs:
+                    pid = p.get("pairAddress", "")
+                    if pid and pid not in seen:
+                        seen.add(pid)
+                        all_pairs.append(p)
+                time.sleep(0.15)
+
+        # 5. Broad memecoin keyword searches
+        keywords = [
+            "pepe", "doge", "cat", "ai", "moon", "pump", "wif", "bonk",
+            "pippin", "river", "inx", "inu", "elon", "baby", "shib",
+            "floki", "wojak", "chad", "based", "gme", "ape", "turbo",
+            "frog", "bome", "boden", "neiro", "goat", "moodeng",
+        ]
         for kw in keywords:
             pairs = self.search_pairs(kw)
-            for p in pairs[:5]:
+            for p in pairs:
                 pid = p.get("pairAddress", "")
                 if pid and pid not in seen:
                     seen.add(pid)
                     all_pairs.append(p)
-            time.sleep(0.2)
+            time.sleep(0.15)
 
         print(f"  Total pairs collected: {len(all_pairs)}")
 
