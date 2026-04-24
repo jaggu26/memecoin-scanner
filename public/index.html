@@ -65,6 +65,12 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
 .tc-link{display:block;margin-top:7px;text-align:center;background:#1a2540;border-radius:6px;padding:4px;font-size:10px;font-weight:700;color:#a855f7;text-decoration:none;transition:.15s}
 .tc-link:hover{background:#2d1060;color:#c084fc}
 
+/* ── Safety badge ── */
+.safety-badge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;margin-bottom:6px;display:inline-block}
+.safety-badge.safe{background:rgba(34,197,94,.2);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+.safety-badge.risky{background:rgba(239,68,68,.2);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.safety-badge.unknown{background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid rgba(245,158,11,.3)}
+
 /* ── Backtest table ── */
 .bt-table{width:100%;border-collapse:collapse;font-size:12px}
 .bt-table th{padding:8px 12px;text-align:left;color:#475569;font-weight:700;text-transform:uppercase;font-size:10px;border-bottom:1px solid #1a2540}
@@ -90,7 +96,7 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
 <div class="tabs">
   <div class="tab active" onclick="switchTab('scanner')">🔍 Live Scanner</div>
   <div class="tab" onclick="switchTab('backtest')">📊 Backtest Results</div>
-  <div class="tab" onclick="switchTab('guide')">📖 Strategy Guide</div>
+  <div class="tab" onclick="switchTab('howto')">📖 How to Use</div>
 </div>
 
 <main>
@@ -154,61 +160,117 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
   <div style="margin-top:12px" id="btTradeList"></div>
 </div>
 
-<!-- ── TAB: Guide ── -->
-<div class="tab-content" id="tab-guide">
+<!-- ── TAB: How to Use ── -->
+<div class="tab-content" id="tab-howto">
 
+  <!-- Section 1: What is This? -->
   <div class="now-card neutral">
-    <div class="now-label">How This Tool Works</div>
-    <div class="now-title">Breakout Scoring System (0–10)</div>
-    <div class="now-sub">Every 30 seconds, we scan 100+ tokens from DexScreener. Each gets a score 0-10 based on these signals:</div>
-    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;line-height:1.8;color:#94a3b8">
-      <div>
-        <strong style="color:#c084fc">Signal 1: Volume Spike (3 pts max)</strong><br>
-        5m volume ≥ 5% of 24h = 3 pts (🔥 huge spike)<br>
-        5m volume ≥ 3% of 24h = 2 pts<br>
-        5m volume ≥ 1.5% of 24h = 1 pt<br><br>
-        <strong style="color:#c084fc">Signal 2: Price Momentum (3 pts max)</strong><br>
-        +15% in 5 min = 3 pts (very strong)<br>
-        +8% in 5 min = 2 pts<br>
-        +3% in 5 min = 1 pt<br>
-        -10% in 5 min = -2 pts (avoid!)
-      </div>
-      <div>
-        <strong style="color:#c084fc">Signal 3: Liquidity Safety (2 pts)</strong><br>
-        ≥ $100,000 = 2 pts (safe to trade)<br>
-        ≥ $30,000 = 1 pt<br>
-        &lt; $10,000 = -2 pts (rug pull risk!)<br><br>
-        <strong style="color:#c084fc">Signal 4: Market Cap (2 pts)</strong><br>
-        $200K–$10M = 2 pts (10x potential)<br>
-        $50K–$200K = 1 pt (early, risky)<br><br>
-        <strong style="color:#c084fc">Signal 5: Buy Pressure (2 pts)</strong><br>
-        Buys &gt; Sells by 65%+ = 2 pts
-      </div>
-    </div>
-  </div>
-
-  <div class="now-card neutral">
-    <div class="now-label">Trade Strategy (Sangeeta's Recommendation)</div>
-    <div class="now-title">Stop Loss + Take Profit Rules</div>
+    <div class="now-label">Section 1: What is Memecoin Scanner?</div>
+    <div class="now-title">Automated Breakout Detection + Scam Filter</div>
     <div style="margin-top:12px;font-size:12px;color:#94a3b8;line-height:2">
-      ⛔ <strong style="color:#f87171">Stop Loss: -15%</strong> — Exit immediately if price drops 15% from entry<br>
-      🎯 <strong style="color:#4ade80">Take Profit 1: +50%</strong> — Sell 50% of position (lock in profit)<br>
-      🎯 <strong style="color:#4ade80">Take Profit 2: +100%</strong> — Sell remaining 50% (double your money)<br>
-      ⏱️ <strong style="color:#fbbf24">Max Hold: 7 days</strong> — Exit if no movement in 7 days<br><br>
-      <strong style="color:#c084fc">Score 5+ = Enter (Breakout signal)</strong><br>
-      <strong style="color:#22c55e">Score 7+ = Strong entry (high conviction)</strong><br>
-      <strong style="color:#ef4444">Score below 5 = Skip</strong>
+      This tool scans <strong>100+ memecoins every 30 seconds</strong> to find:<br><br>
+      ✅ <strong>Breakouts:</strong> Tokens with sudden volume spikes + price momentum<br>
+      ✅ <strong>Safety:</strong> Tokens that are NOT rug pulls, honeypots, or scams<br>
+      ✅ <strong>Timing:</strong> Real-time alerts when price momentum is strongest<br><br>
+      <strong>Live data from:</strong> DexScreener (prices, volume) + GoPlus (security checks)<br>
+      <strong>Scanned every:</strong> 30 seconds (auto-refresh)<br>
+      <strong>Perfect for:</strong> Quick memecoin swing trades (5min–7day holds)
     </div>
   </div>
 
+  <!-- Section 2: How to Read the Cards -->
   <div class="now-card neutral">
-    <div class="now-label">⚠️ Critical Warnings</div>
+    <div class="now-label">Section 2: How to Read the Token Cards</div>
+    <div class="now-title">Understanding the Score & Signals</div>
+    <div style="margin-top:12px;font-size:12px;color:#94a3b8;line-height:2">
+      <strong style="color:#c084fc">🎯 SCORE (0–10)</strong><br>
+      • <strong style="color:#ef4444">0–4</strong> = Too weak, skip<br>
+      • <strong style="color:#fbbf24">5–6</strong> = Entry signal (yellow, moderate conviction)<br>
+      • <strong style="color:#a855f7">7–8</strong> = Strong entry (purple, high conviction)<br>
+      • <strong style="color:#22c55e">9–10</strong> = VERY STRONG (green, rare)<br><br>
+      <strong style="color:#c084fc">🛡️ SAFETY BADGE</strong><br>
+      • <strong style="color:#4ade80">✅ SAFE</strong> — Passed all security checks (liquidity, no honeypot)<br>
+      • <strong style="color:#f87171">❌ RISKY</strong> — Honeypot detected or suspicious holder distribution<br>
+      • <strong style="color:#fbbf24">⚠️ UNVERIFIED</strong> — Could not verify, check manually<br><br>
+      <strong style="color:#c084fc">📊 KEY METRICS</strong><br>
+      • <strong>5m/1h:</strong> Price % change (green = up, red = down)<br>
+      • <strong>Liq:</strong> Liquidity ($) — higher is safer<br>
+      • <strong>MC:</strong> Market cap — sweet spot is $200K–$10M<br>
+      • <strong>Vol:</strong> Trading volume in 5 min<br>
+      • <strong>B/S:</strong> Buys vs Sells — more buys = bullish
+    </div>
+  </div>
+
+  <!-- Section 3: Scam Filter Explained -->
+  <div class="now-card neutral">
+    <div class="now-label">Section 3: The 5-Point Scam Filter (Use This!)</div>
+    <div class="now-title">Before You Buy ANY Memecoin</div>
+    <div style="margin-top:12px;font-size:12px;color:#94a3b8;line-height:2">
+      <strong style="color:#a855f7">1. Liquidity &gt; $20K?</strong><br>
+      If liquidity is less than $20K, the coin can be rugpulled easily. Skip it. 🛑<br><br>
+      <strong style="color:#a855f7">2. Liquidity Locked?</strong><br>
+      Check if LP tokens are locked in a locker contract (not in owner's wallet). This prevents rugpull.<br><br>
+      <strong style="color:#a855f7">3. No Wallet Holds &gt; 20%?</strong><br>
+      If one person owns 50%+ of tokens, they can dump and crash price. Red flag! 🚨<br><br>
+      <strong style="color:#a855f7">4. Sells Happening Normally?</strong><br>
+      If ONLY buys are happening (0 sells), it's likely a <strong>HONEYPOT</strong> — you can buy but can't sell! Avoid! 🍯<br><br>
+      <strong style="color:#a855f7">5. Chart Not a Straight Pump?</strong><br>
+      Tokens that pump 1000% in 1 minute = pump & dump scheme. Don't buy at the peak. Wait for pullback. 📉<br><br>
+      <strong style="color:#ef4444">⚠️ IF ANY ANSWER = NO → SKIP THAT COIN</strong>
+    </div>
+  </div>
+
+  <!-- Section 4: Step-by-Step Trade Guide -->
+  <div class="now-card neutral">
+    <div class="now-label">Section 4: Step-by-Step Trade Guide</div>
+    <div class="now-title">From Scanner Alert to Profit</div>
+    <div style="margin-top:12px;font-size:12px;color:#94a3b8;line-height:2">
+      <strong style="color:#c084fc">Step 1: Scanner Alert</strong><br>
+      Score ≥ 5 appears on the scanner. Safety badge is SAFE ✅. This is your buy signal.<br><br>
+      <strong style="color:#c084fc">Step 2: Run Scam Filter</strong><br>
+      Check the 5-point checklist above. All pass? ✅ Continue. Any NO? ❌ Skip.<br><br>
+      <strong style="color:#c084fc">Step 3: Manual Chart Check</strong><br>
+      Open DexScreener link. Look at the chart. Is it a straight pump? If yes, wait for pullback.<br><br>
+      <strong style="color:#c084fc">Step 4: Set Stop Loss &amp; Take Profits</strong><br>
+      Buy amount: X tokens<br>
+      • Stop Loss: -15% from entry (sell all)<br>
+      • Take Profit 1: +50% (sell 50% of position)<br>
+      • Take Profit 2: +100% (sell remaining 50%)<br><br>
+      <strong style="color:#c084fc">Step 5: Hold Max 7 Days</strong><br>
+      If no movement, exit on day 7 even if slight profit. Don't hold dead coins.<br><br>
+      <strong style="color:#c084fc">Step 6: Log Trade</strong><br>
+      Record entry price, exit price, profit/loss % for your records.
+    </div>
+  </div>
+
+  <!-- Section 5: Glossary -->
+  <div class="now-card neutral">
+    <div class="now-label">Section 5: Glossary (Simple Definitions)</div>
+    <div style="margin-top:12px;font-size:12px;color:#94a3b8;line-height:2">
+      <strong style="color:#a855f7">Breakout:</strong> Token that suddenly spikes in volume + price (buying pressure)<br>
+      <strong style="color:#a855f7">Liquidity:</strong> Money locked in the trading pool. Higher = easier to buy/sell<br>
+      <strong style="color:#a855f7">Market Cap:</strong> Total value of all tokens in circulation. Shows how "big" the coin is<br>
+      <strong style="color:#a855f7">Honeypot:</strong> Scam token where you can BUY but CAN'T SELL. You're trapped!<br>
+      <strong style="color:#a855f7">Rug Pull:</strong> Developers steal liquidity + disappear. You lose 100%<br>
+      <strong style="color:#a855f7">Volume:</strong> Number of tokens bought/sold in a time period. High = lots of traders<br>
+      <strong style="color:#a855f7">Slippage:</strong> Difference between expected price &amp; actual price. High slippage = lose money<br>
+      <strong style="color:#a855f7">LP Lock:</strong> Liquidity locked in a smart contract, preventing theft. Good security feature<br>
+      <strong style="color:#a855f7">Smart Money:</strong> Experienced traders. If they hold &lt;20%, it's safer to trade<br>
+      <strong style="color:#a855f7">Pump &amp; Dump:</strong> Insiders pump price, then dump all tokens &amp; crash it. You lose
+    </div>
+  </div>
+
+  <!-- Section 6: Important Warnings -->
+  <div class="now-card neutral">
+    <div class="now-label">⚠️ Critical Risk Warnings</div>
     <div style="font-size:12px;color:#94a3b8;line-height:2;margin-top:8px">
-      🔴 <strong>Rug Pulls:</strong> Always check liquidity lock before buying. If liquidity &lt; $30K, skip.<br>
-      🔴 <strong>Slippage:</strong> Memecoins have high slippage. Set 5-10% slippage on DEX.<br>
-      🔴 <strong>Position Size:</strong> Never put more than 5-10% of capital in one memecoin.<br>
-      🔴 <strong>FOMO:</strong> If score is high but you missed the 5m candle, wait for next signal.<br>
-      🟡 <strong>Network:</strong> Use Solana for cheapest fees ($0.001/trade vs $5-50 on Ethereum).
+      🔴 <strong>Start Small:</strong> Never risk more than 5-10% of your total crypto on ONE memecoin<br>
+      🔴 <strong>This Tool is Not 100%:</strong> Even with safety checks, memecoins are HIGH RISK<br>
+      🔴 <strong>Set Stop Loss:</strong> Always set -15% stop loss. Discipline = survival<br>
+      🔴 <strong>Slippage:</strong> Set 5-10% slippage on DEX or you'll get rejected<br>
+      🔴 <strong>Gas Fees:</strong> Ethereum = $5–50 per trade. Solana = $0.001. Choose wisely<br>
+      🔴 <strong>FOMO is a Killer:</strong> Missed a 100% gain? Don't chase it. Next one coming in 5 min<br>
+      🟡 <strong>Verify Before Buying:</strong> Always check TokenSniffer or GoPlus manually before large buys
     </div>
   </div>
 </div>
@@ -222,7 +284,7 @@ let btResults = [];
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 function switchTab(id) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    const ids = ['scanner', 'backtest', 'guide'];
+    const ids = ['scanner', 'backtest', 'howto'];
     t.classList.toggle('active', ids[i] === id);
   });
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -291,12 +353,15 @@ function renderScanner(data, scanCount) {
     const cls = r.is_strong ? 'strong' : r.is_breakout ? 'fire' : '';
     const sbCls = r.is_strong ? 'sb-ok' : r.is_breakout ? 'sb-fire' : 'sb-low';
     const chgColor = (v) => v > 0 ? '#4ade80' : v < 0 ? '#f87171' : '#94a3b8';
+    const safetyBadge = r.is_safe === true ? 'safe' : r.is_safe === false ? 'risky' : 'unknown';
+    const safetyText = r.is_safe === true ? '✅ SAFE' : r.is_safe === false ? '❌ RISKY' : '⚠️ UNVERIFIED';
     return `
     <div class="token-card ${cls}" onclick="window.open('${r.url}','_blank')">
       <div class="tc-top">
         <span class="tc-name">${r.symbol}</span>
         <span class="score-badge ${sbCls}">${r.score}/10</span>
       </div>
+      <div class="safety-badge ${safetyBadge}">${safetyText}</div>
       <div class="tc-chain">${r.chain.toUpperCase()} · ${r.dex}</div>
       <div class="tc-price">$${r.price_usd?.toFixed(6) || '—'}</div>
       <div class="tc-stats">
@@ -307,7 +372,7 @@ function renderScanner(data, scanCount) {
         <div>Vol/5m: <span>$${fmt(r.vol_5m)}</span></div>
         <div>B/S: <span>${r.buys_5m}/${r.sells_5m}</span></div>
       </div>
-      <div class="signals-list">${(r.signals || []).slice(0, 3).join('<br>')}</div>
+      <div class="signals-list">${(r.signals || []).slice(0, 3).join('<br>')}${r.safety_flags?.length > 0 ? '<br><strong style="color:#fbbf24">' + r.safety_flags.slice(0, 2).join('<br>') + '</strong>' : ''}</div>
       ${r.url ? `<a class="tc-link" href="${r.url}" target="_blank" onclick="event.stopPropagation()">Open DexScreener ↗</a>` : ''}
     </div>`;
   }).join('');

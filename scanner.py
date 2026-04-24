@@ -1,6 +1,7 @@
 """
 Memecoin Breakout Scanner — DexScreener API
 Scans for high-momentum tokens and scores them 0-10
+Includes GoPlus Security API for scam detection
 """
 import requests
 import time
@@ -9,10 +10,24 @@ from datetime import datetime
 
 class BreakoutScanner:
     DEXSCREENER_BASE = "https://api.dexscreener.com"
+    GOPLUS_BASE = "https://api.gopluslabs.io/api/v1"
 
     # Breakout score thresholds
     BREAKOUT_MIN_SCORE = 5   # Score >= 5 → Alert
     STRONG_BREAKOUT    = 7   # Score >= 7 → Strong Alert
+
+    # Chain ID mapping: DexScreener → GoPlus
+    CHAIN_MAP = {
+        "ethereum": "1",
+        "bsc": "56",
+        "polygon": "137",
+        "arbitrum": "42161",
+        "base": "8453",
+        "solana": "solana",
+        "avalanche": "43114",
+        "fantom": "250",
+        "optimism": "10",
+    }
 
     def __init__(self):
         self.session = requests.Session()
@@ -21,6 +36,7 @@ class BreakoutScanner:
             'Accept': 'application/json',
         })
         self.scan_history = []   # last 200 results
+        self._safety_cache = {}  # token_address → (timestamp, result)
 
     # ── API helpers ──────────────────────────────────────────────────────────
 
@@ -44,6 +60,105 @@ class BreakoutScanner:
     def search_pairs(self, query):
         data = self._get(f"{self.DEXSCREENER_BASE}/latest/dex/search", params={"q": query})
         return (data or {}).get("pairs", [])
+
+    # ── Safety Check (GoPlus Security) ──────────────────────────────────────
+
+    def check_token_safety(self, chain, token_address):
+        """Check token security via GoPlus API. Returns safety dict."""
+        if not token_address or len(token_address) < 10:
+            return {
+                "safety_score": 3,
+                "is_safe": None,
+                "safety_flags": [],
+                "top_holder_pct": 0,
+                "is_honeypot": None,
+            }
+
+        cache_key = token_address.lower()
+        now = time.time()
+
+        # Check cache (5 min TTL)
+        if cache_key in self._safety_cache:
+            cached_at, cached_result = self._safety_cache[cache_key]
+            if now - cached_at < 300:
+                return cached_result
+
+        chain_id = self.CHAIN_MAP.get(chain.lower())
+        if not chain_id:
+            result = {
+                "safety_score": 3,
+                "is_safe": None,
+                "safety_flags": [f"⚠️ Chain '{chain}' not checked"],
+                "top_holder_pct": 0,
+                "is_honeypot": None,
+            }
+            self._safety_cache[cache_key] = (now, result)
+            return result
+
+        # Call GoPlus API (2 sec timeout)
+        try:
+            url = f"{self.GOPLUS_BASE}/token_security/{chain_id}"
+            response = self.session.get(
+                url,
+                params={"contract_addresses": token_address},
+                timeout=2,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            # Parse result
+            token_data = (data.get("result", {}) or {}).get(token_address.lower(), {})
+            safety_score = 5
+            safety_flags = []
+
+            # Check 1: Honeypot
+            is_honeypot = token_data.get("is_honeypot")
+            if is_honeypot == "1" or is_honeypot is True:
+                safety_score = 0
+                safety_flags.append("❌ HONEYPOT DETECTED")
+
+            # Check 2: Top holder %
+            top_holder_pct = 0
+            holder_list = token_data.get("holders", [])
+            if holder_list and len(holder_list) > 0:
+                top_holder_pct = float(holder_list[0].get("percentage", 0) or 0) * 100
+                if top_holder_pct > 30:
+                    safety_score -= 1
+                    safety_flags.append(f"⚠️ Top holder: {top_holder_pct:.1f}%")
+
+            # Check 3: Liquidity locked
+            lp_holders = token_data.get("lp_holders", [])
+            is_locked = any(h.get("percentage", 0) == 100 for h in lp_holders)
+            if is_locked:
+                safety_score += 1
+                safety_flags.append("✅ Liquidity locked")
+
+            # Check 4: Owner can mint
+            owner_can_mint = token_data.get("owner_change_balance")
+            if owner_can_mint == "1" or owner_can_mint is True:
+                safety_flags.append("⚠️ Owner can mint tokens")
+                if safety_score > 0:
+                    safety_score -= 1
+
+            result = {
+                "safety_score": max(0, min(5, safety_score)),
+                "is_safe": safety_score >= 3 if is_honeypot != "1" else False,
+                "safety_flags": safety_flags,
+                "top_holder_pct": top_holder_pct,
+                "is_honeypot": is_honeypot == "1" if is_honeypot else None,
+            }
+        except Exception as e:
+            print(f"  [GoPlus API error] {token_address[:12]}… → {e}")
+            result = {
+                "safety_score": 3,
+                "is_safe": None,
+                "safety_flags": ["⚠️ Safety check unavailable"],
+                "top_holder_pct": 0,
+                "is_honeypot": None,
+            }
+
+        self._safety_cache[cache_key] = (now, result)
+        return result
 
     # ── Scoring ──────────────────────────────────────────────────────────────
 
@@ -108,9 +223,11 @@ class BreakoutScanner:
             elif market_cap > 100_000_000:
                 signals.append(f"📦 MC too large: ${market_cap/1e6:.1f}M (less upside)")
 
-            # ── Signal 5: Buy pressure ──────────────────────────────────────
+            # ── Signal 5: Buy pressure & honeypot detection ──────────────────
             total_txns = buys_5m + sells_5m
-            if total_txns > 0:
+            if sells_5m == 0 and buys_5m > 0:
+                score -= 2; signals.append(f"🚨 No sells detected: {buys_5m}B/0S (honeypot risk)")
+            elif total_txns > 0:
                 buy_ratio = buys_5m / total_txns
                 if total_txns >= 100 and buy_ratio >= 0.65:
                     score += 2; signals.append(f"💚 Strong buy pressure {buys_5m}B/{sells_5m}S ({buy_ratio*100:.0f}% buys)")
@@ -175,6 +292,21 @@ class BreakoutScanner:
         results = []
         for pair in all_pairs:
             score, signals = self.score_pair(pair)
+
+            # Get token safety info for promising tokens
+            token_address = pair.get("baseToken", {}).get("address", "")
+            chain = pair.get("chainId", "")
+            safety_info = {}
+            if score >= 4:  # Only check safety for tokens scoring >= 4
+                safety_info = self.check_token_safety(chain, token_address)
+            else:
+                safety_info = {
+                    "safety_score": 3,
+                    "is_safe": None,
+                    "safety_flags": [],
+                    "top_holder_pct": 0,
+                }
+
             results.append({
                 "name":       pair.get("baseToken", {}).get("name", "?"),
                 "symbol":     pair.get("baseToken", {}).get("symbol", "?"),
@@ -194,6 +326,10 @@ class BreakoutScanner:
                 "is_breakout": score >= self.BREAKOUT_MIN_SCORE,
                 "is_strong":   score >= self.STRONG_BREAKOUT,
                 "signals":    signals,
+                "token_address": token_address,
+                "safety_score": safety_info.get("safety_score", 3),
+                "is_safe":    safety_info.get("is_safe"),
+                "safety_flags": safety_info.get("safety_flags", []),
                 "url":        pair.get("url", ""),
                 "scanned_at": datetime.now().isoformat(),
             })
