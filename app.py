@@ -186,7 +186,7 @@ def api_search():
     if address:
         pairs = scanner.search_by_address(address)
     elif name:
-        pairs = scanner.search_pairs(name)
+        pairs = scanner.search_pairs_fanout(name)
     else:
         # Chain-only filter: search trending on that chain
         pairs = scanner.search_pairs(f"{chain} meme") + scanner.search_pairs(f"{chain} trending")

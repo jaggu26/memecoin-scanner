@@ -61,6 +61,33 @@ class BreakoutScanner:
         data = self._get(f"{self.DEXSCREENER_BASE}/latest/dex/search", params={"q": query})
         return (data or {}).get("pairs", [])
 
+    def search_pairs_fanout(self, name):
+        """Fan-out: search name + name+chain in parallel → up to 7×30 deduplicated results."""
+        import concurrent.futures
+        queries = [
+            name,
+            f"{name} solana",
+            f"{name} ethereum",
+            f"{name} bsc",
+            f"{name} base",
+            f"{name} polygon",
+            f"{name} arbitrum",
+        ]
+        all_pairs = []
+        seen = set()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=7) as executor:
+            futures = {executor.submit(self.search_pairs, q): q for q in queries}
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    for p in future.result():
+                        pid = p.get("pairAddress", "")
+                        if pid and pid not in seen:
+                            seen.add(pid)
+                            all_pairs.append(p)
+                except Exception:
+                    pass
+        return all_pairs
+
     def search_by_address(self, token_address):
         """Search by contract address — tries DexScreener search + chain-specific endpoints."""
         pairs = []
