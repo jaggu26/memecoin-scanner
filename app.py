@@ -74,8 +74,18 @@ def login_required(f):
         # Fallback to cookie if header not present
         if not token:
             token = request.cookies.get('auth_token', '')
-        if not token or ':' not in token:
+
+        if not token:
             return redirect('/login.html')
+
+        # Decode token to check format (should be "username:timestamp")
+        try:
+            decoded_token = base64.b64decode(token).decode()
+            if ':' not in decoded_token:
+                return redirect('/login.html')
+        except:
+            return redirect('/login.html')
+
         return f(*args, **kwargs)
     return decorated_function
 
