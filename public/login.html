@@ -201,15 +201,13 @@
         const data = await response.json();
 
         if (response.ok) {
-          // Store token and setup for future requests
-          localStorage.setItem('auth_token', data.token);
+          // Store token in cookie (sent automatically with all requests)
+          const expireDate = new Date();
+          expireDate.setTime(expireDate.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+          document.cookie = `auth_token=${data.token}; expires=${expireDate.toUTCString()}; path=/`;
 
-          // Add token to Authorization header for next request
-          window.fetch = (url, options = {}) => {
-            if (!options.headers) options.headers = {};
-            options.headers['Authorization'] = `Bearer ${localStorage.getItem('auth_token')}`;
-            return fetch.apply(window, [url, options]);
-          };
+          // Also store in localStorage for fetch requests
+          localStorage.setItem('auth_token', data.token);
 
           // Redirect to dashboard
           setTimeout(() => { window.location.href = '/'; }, 100);

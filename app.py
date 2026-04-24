@@ -69,7 +69,11 @@ threading.Thread(target=backtest_loop, daemon=True).start()
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Check Authorization header first
         token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        # Fallback to cookie if header not present
+        if not token:
+            token = request.cookies.get('auth_token', '')
         if not token or ':' not in token:
             return redirect('/login.html')
         return f(*args, **kwargs)
