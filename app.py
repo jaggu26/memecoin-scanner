@@ -126,6 +126,57 @@ def api_scan():
         "ts": datetime.now().isoformat(),
     })
 
+@app.route("/api/search")
+@login_required
+def api_search():
+    q = request.args.get("q", "").strip()
+    if not q or len(q) < 1:
+        return jsonify({"results": [], "query": q})
+
+    pairs = scanner.search_pairs(q)   # hits DexScreener search directly
+
+    results = []
+    seen = set()
+    for pair in pairs:
+        pid = pair.get("pairAddress", "")
+        if pid in seen:
+            continue
+        seen.add(pid)
+
+        score, signals = scanner.score_pair(pair)
+        token_address = pair.get("baseToken", {}).get("address", "")
+        chain = pair.get("chainId", "")
+
+        results.append({
+            "name":       pair.get("baseToken", {}).get("name", "?"),
+            "symbol":     pair.get("baseToken", {}).get("symbol", "?"),
+            "chain":      chain or "?",
+            "dex":        pair.get("dexId", "?"),
+            "price_usd":  float(pair.get("priceUsd", 0) or 0),
+            "chg_5m":     float(pair.get("priceChange", {}).get("m5",  0) or 0),
+            "chg_1h":     float(pair.get("priceChange", {}).get("h1",  0) or 0),
+            "chg_24h":    float(pair.get("priceChange", {}).get("h24", 0) or 0),
+            "vol_5m":     float(pair.get("volume", {}).get("m5",  0) or 0),
+            "vol_24h":    float(pair.get("volume", {}).get("h24", 0) or 0),
+            "liquidity":  float(pair.get("liquidity", {}).get("usd", 0) or 0),
+            "market_cap": float(pair.get("marketCap", 0) or pair.get("fdv", 0) or 0),
+            "buys_5m":    int(pair.get("txns", {}).get("m5", {}).get("buys", 0) or 0),
+            "sells_5m":   int(pair.get("txns", {}).get("m5", {}).get("sells", 0) or 0),
+            "score":      score,
+            "is_breakout": score >= scanner.BREAKOUT_MIN_SCORE,
+            "is_strong":   score >= scanner.STRONG_BREAKOUT,
+            "signals":    signals,
+            "token_address": token_address,
+            "safety_score": 3,
+            "is_safe": None,
+            "safety_flags": [],
+            "url":        pair.get("url", ""),
+            "scanned_at": datetime.now().isoformat(),
+        })
+
+    results.sort(key=lambda x: x["score"], reverse=True)
+    return jsonify({"results": results, "query": q})
+
 @app.route("/api/backtest")
 @login_required
 def api_backtest():

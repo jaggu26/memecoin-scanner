@@ -357,10 +357,9 @@ function renderScanner(data, scanCount) {
       <div class="now-sub">Scanning ${data.length} tokens. Auto-refreshes every 30 seconds.</div>`;
   }
 
-  // Token grid — respects active search filter
-  const q = (document.getElementById('coinSearch')?.value || '').toLowerCase().trim();
-  const filtered = q ? data.filter(r => r.symbol?.toLowerCase().includes(q) || r.name?.toLowerCase().includes(q)) : data;
-  renderGrid(filtered.slice(0, 24));
+  // Token grid — don't override if user has an active search
+  const activeSearch = (document.getElementById('coinSearch')?.value || '').trim();
+  if (!activeSearch) renderGrid(data.slice(0, 24));
 }
 
 // ── Backtest polling ──────────────────────────────────────────────────────────
@@ -449,22 +448,43 @@ function renderGrid(tokens) {
 }
 
 // ── Search / Filter ───────────────────────────────────────────────────────────
-function filterGrid() {
-  const q = (document.getElementById('coinSearch')?.value || '').toLowerCase().trim();
-  const filtered = q
-    ? scanData.filter(r => r.symbol?.toLowerCase().includes(q) || r.name?.toLowerCase().includes(q))
-    : scanData;
+let searchTimer = null;
 
+function filterGrid() {
+  const q = (document.getElementById('coinSearch')?.value || '').trim();
   const countEl = document.getElementById('searchCount');
-  if (q) {
-    countEl.textContent = filtered.length
-      ? `${filtered.length} coin${filtered.length !== 1 ? 's' : ''} found`
-      : 'No coins found matching "' + q + '"';
-  } else {
+
+  if (!q) {
     countEl.textContent = '';
+    renderGrid(scanData.slice(0, 24));
+    return;
   }
 
-  renderGrid(filtered.slice(0, 24));
+  // Show loading state
+  countEl.textContent = 'Searching DexScreener…';
+  document.getElementById('tokenGrid').innerHTML =
+    '<div class="empty" style="grid-column:1/-1">Searching all coins on DexScreener…</div>';
+
+  // Debounce: wait 400ms after user stops typing
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      const results = data.results || [];
+
+      if (results.length) {
+        countEl.textContent = `${results.length} coin${results.length !== 1 ? 's' : ''} found on DexScreener`;
+        renderGrid(results);
+      } else {
+        countEl.textContent = `No coins found for "${q}"`;
+        document.getElementById('tokenGrid').innerHTML =
+          `<div class="empty" style="grid-column:1/-1">No coins found for "${q}" on DexScreener.</div>`;
+      }
+    } catch (err) {
+      countEl.textContent = 'Search error — try again';
+    }
+  }, 400);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
