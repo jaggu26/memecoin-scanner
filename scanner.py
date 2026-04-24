@@ -61,6 +61,108 @@ class BreakoutScanner:
         data = self._get(f"{self.DEXSCREENER_BASE}/latest/dex/search", params={"q": query})
         return (data or {}).get("pairs", [])
 
+    def search_by_address(self, token_address):
+        """Search by contract address — tries DexScreener search + chain-specific endpoints."""
+        pairs = []
+        seen = set()
+
+        # DexScreener search handles contract addresses natively
+        for p in self.search_pairs(token_address):
+            pid = p.get("pairAddress", "")
+            if pid and pid not in seen:
+                seen.add(pid)
+                pairs.append(p)
+
+        # EVM address: also try each chain's token-pairs endpoint
+        import re
+        if re.match(r'^0x[0-9a-fA-F]{40}$', token_address):
+            for chain in ["ethereum", "bsc", "base", "polygon", "arbitrum", "avalanche", "optimism"]:
+                for p in self.get_token_pairs(chain, token_address):
+                    pid = p.get("pairAddress", "")
+                    if pid and pid not in seen:
+                        seen.add(pid)
+                        pairs.append(p)
+                time.sleep(0.1)
+        elif len(token_address) >= 32 and not token_address.startswith("0x"):
+            # Likely Solana base58
+            for p in self.get_token_pairs("solana", token_address):
+                pid = p.get("pairAddress", "")
+                if pid and pid not in seen:
+                    seen.add(pid)
+                    pairs.append(p)
+
+        return pairs
+
+    # ── Technical Score (Strategy 2) ─────────────────────────────────────────
+
+    def score_technical(self, pair, rsi_low=55, rsi_high=75, volume_mult=2, atr_mult=1):
+        """
+        Approximate technical score from DexScreener data.
+        Mirrors: EMA trend, RSI range, volume surge, breakout, ATR volatility.
+        Score is 0-12 (2+2+3+3+2).
+        """
+        score = 0
+        signals = []
+
+        try:
+            chg_1h  = float(pair.get("priceChange", {}).get("h1",  0) or 0)
+            chg_6h  = float(pair.get("priceChange", {}).get("h6",  0) or 0)
+            chg_24h = float(pair.get("priceChange", {}).get("h24", 0) or 0)
+            chg_5m  = float(pair.get("priceChange", {}).get("m5",  0) or 0)
+
+            vol_1h  = float(pair.get("volume", {}).get("h1",  0) or 0)
+            vol_6h  = float(pair.get("volume", {}).get("h6",  0) or 0)
+            vol_24h = float(pair.get("volume", {}).get("h24", 0) or 0)
+
+            # 1. Trend (EMA20 > EMA50 proxy)
+            # Short-term (1h) positive while overall (24h) positive = uptrend
+            if chg_1h > 0 and chg_24h > -5:
+                score += 2
+                signals.append(f"📈 Trend UP: 1h={chg_1h:+.1f}% 24h={chg_24h:+.1f}%")
+
+            # 2. RSI (approximated from 1h momentum)
+            # chg_1h maps roughly: +2-15% → RSI 55-75
+            approx_rsi = 50 + (chg_1h * 1.5)
+            approx_rsi = max(0, min(100, approx_rsi))
+            if rsi_low < approx_rsi < rsi_high:
+                score += 2
+                signals.append(f"📊 RSI ~{approx_rsi:.0f} (optimal {rsi_low}–{rsi_high})")
+            elif approx_rsi >= rsi_high:
+                signals.append(f"🔴 RSI ~{approx_rsi:.0f} (overbought)")
+
+            # 3. Volume surge (volume > mult * hourly avg)
+            avg_1h_vol = vol_24h / 24 if vol_24h > 0 else 0
+            if avg_1h_vol > 0 and vol_1h > volume_mult * avg_1h_vol:
+                score += 3
+                signals.append(f"🔥 Vol surge: ${vol_1h:,.0f}/1h vs ${avg_1h_vol:,.0f} avg")
+            elif avg_1h_vol > 0 and vol_1h > avg_1h_vol:
+                score += 1
+                signals.append(f"📊 Vol above avg: ${vol_1h:,.0f}/1h")
+
+            # 4. Breakout (price > rolling 20-period resistance proxy)
+            # Proxy: if 24h up AND 1h continues up AND near 24h high = breakout
+            if chg_24h > 5 and chg_1h > 0:
+                score += 3
+                signals.append(f"🚀 Breakout: +{chg_24h:.1f}%/24h momentum")
+            elif chg_6h > 3 and chg_1h > 0:
+                score += 1
+                signals.append(f"↗️ Soft breakout: +{chg_6h:.1f}%/6h")
+
+            # 5. Volatility (ATR proxy: 5m absolute change vs typical)
+            # High 5m move > 3% = ATR elevated
+            atr_proxy = abs(chg_5m)
+            if atr_proxy > 5:
+                score += 2
+                signals.append(f"💥 High ATR: {atr_proxy:.1f}%/5m move")
+            elif atr_proxy > 2:
+                score += 1
+                signals.append(f"⚡ Moderate ATR: {atr_proxy:.1f}%/5m")
+
+        except Exception as e:
+            signals.append(f"⚠️ Tech score error: {e}")
+
+        return max(0, score), signals   # raw 0-12 scale
+
     # ── Safety Check (GoPlus Security) ──────────────────────────────────────
 
     def check_token_safety(self, chain, token_address):
@@ -333,47 +435,47 @@ class BreakoutScanner:
         # Score every pair
         results = []
         for pair in all_pairs:
-            score, signals = self.score_pair(pair)
+            breakout_score, breakout_signals = self.score_pair(pair)
+            tech_score, tech_signals = self.score_technical(pair)
 
-            # Get token safety info for promising tokens
             token_address = pair.get("baseToken", {}).get("address", "")
             chain = pair.get("chainId", "")
-            safety_info = {}
-            if score >= 4:  # Only check safety for tokens scoring >= 4
+
+            if breakout_score >= 4:
                 safety_info = self.check_token_safety(chain, token_address)
             else:
-                safety_info = {
-                    "safety_score": 3,
-                    "is_safe": None,
-                    "safety_flags": [],
-                    "top_holder_pct": 0,
-                }
+                safety_info = {"safety_score": 3, "is_safe": None, "safety_flags": [], "top_holder_pct": 0}
 
             results.append({
-                "name":       pair.get("baseToken", {}).get("name", "?"),
-                "symbol":     pair.get("baseToken", {}).get("symbol", "?"),
-                "chain":      pair.get("chainId", "?"),
-                "dex":        pair.get("dexId", "?"),
-                "price_usd":  float(pair.get("priceUsd", 0) or 0),
-                "chg_5m":     float(pair.get("priceChange", {}).get("m5",  0) or 0),
-                "chg_1h":     float(pair.get("priceChange", {}).get("h1",  0) or 0),
-                "chg_24h":    float(pair.get("priceChange", {}).get("h24", 0) or 0),
-                "vol_5m":     float(pair.get("volume", {}).get("m5",  0) or 0),
-                "vol_24h":    float(pair.get("volume", {}).get("h24", 0) or 0),
-                "liquidity":  float(pair.get("liquidity", {}).get("usd", 0) or 0),
-                "market_cap": float(pair.get("marketCap", 0) or pair.get("fdv", 0) or 0),
-                "buys_5m":    int(pair.get("txns", {}).get("m5", {}).get("buys", 0) or 0),
-                "sells_5m":   int(pair.get("txns", {}).get("m5", {}).get("sells", 0) or 0),
-                "score":      score,
-                "is_breakout": score >= self.BREAKOUT_MIN_SCORE,
-                "is_strong":   score >= self.STRONG_BREAKOUT,
-                "signals":    signals,
+                "name":          pair.get("baseToken", {}).get("name", "?"),
+                "symbol":        pair.get("baseToken", {}).get("symbol", "?"),
+                "chain":         pair.get("chainId", "?"),
+                "dex":           pair.get("dexId", "?"),
+                "price_usd":     float(pair.get("priceUsd", 0) or 0),
+                "chg_5m":        float(pair.get("priceChange", {}).get("m5",  0) or 0),
+                "chg_1h":        float(pair.get("priceChange", {}).get("h1",  0) or 0),
+                "chg_24h":       float(pair.get("priceChange", {}).get("h24", 0) or 0),
+                "vol_5m":        float(pair.get("volume", {}).get("m5",  0) or 0),
+                "vol_24h":       float(pair.get("volume", {}).get("h24", 0) or 0),
+                "liquidity":     float(pair.get("liquidity", {}).get("usd", 0) or 0),
+                "market_cap":    float(pair.get("marketCap", 0) or pair.get("fdv", 0) or 0),
+                "buys_5m":       int(pair.get("txns", {}).get("m5", {}).get("buys", 0) or 0),
+                "sells_5m":      int(pair.get("txns", {}).get("m5", {}).get("sells", 0) or 0),
+                # Breakout score (existing)
+                "score":         breakout_score,
+                "is_breakout":   breakout_score >= self.BREAKOUT_MIN_SCORE,
+                "is_strong":     breakout_score >= self.STRONG_BREAKOUT,
+                "signals":       breakout_signals,
+                # Technical score (new)
+                "tech_score":    tech_score,
+                "tech_signals":  tech_signals,
+                # Safety
                 "token_address": token_address,
-                "safety_score": safety_info.get("safety_score", 3),
-                "is_safe":    safety_info.get("is_safe"),
-                "safety_flags": safety_info.get("safety_flags", []),
-                "url":        pair.get("url", ""),
-                "scanned_at": datetime.now().isoformat(),
+                "safety_score":  safety_info.get("safety_score", 3),
+                "is_safe":       safety_info.get("is_safe"),
+                "safety_flags":  safety_info.get("safety_flags", []),
+                "url":           pair.get("url", ""),
+                "scanned_at":    datetime.now().isoformat(),
             })
 
         results.sort(key=lambda x: x["score"], reverse=True)

@@ -73,6 +73,9 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
 .search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#475569;font-size:14px;pointer-events:none}
 .search-count{font-size:10px;color:#475569;margin-bottom:6px}
 
+/* ── Tech score badge ── */
+.tech-badge{font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3)}
+
 /* ── Safety badge ── */
 .safety-badge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;margin-bottom:6px;display:inline-block}
 .safety-badge.safe{background:rgba(34,197,94,.2);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
@@ -129,7 +132,7 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
   <!-- Search -->
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
-    <input class="search-input" id="coinSearch" type="text" placeholder="Search by coin name or symbol (e.g. PEPE, DOGE…)" oninput="filterGrid()">
+    <input class="search-input" id="coinSearch" type="text" placeholder="Search by name, symbol or contract address (0x… / Solana address)" oninput="filterGrid()">
   </div>
   <div class="search-count" id="searchCount"></div>
 
@@ -428,7 +431,10 @@ function renderGrid(tokens) {
     <div class="token-card ${cls}" onclick="window.open('${r.url}','_blank')">
       <div class="tc-top">
         <span class="tc-name">${r.symbol}</span>
-        <span class="score-badge ${sbCls}">${r.score}/10</span>
+        <div style="display:flex;gap:4px;align-items:center">
+          <span class="score-badge ${sbCls}" title="Breakout Score">B:${r.score}/10</span>
+          <span class="tech-badge" title="Technical Score (EMA/RSI/Vol/ATR)">T:${r.tech_score ?? '—'}/12</span>
+        </div>
       </div>
       <div class="safety-badge ${safetyBadge}">${safetyText}</div>
       <div class="tc-chain">${r.chain.toUpperCase()} · ${r.dex}</div>
@@ -441,7 +447,11 @@ function renderGrid(tokens) {
         <div>Vol/5m: <span>$${fmt(r.vol_5m)}</span></div>
         <div>B/S: <span>${r.buys_5m}/${r.sells_5m}</span></div>
       </div>
-      <div class="signals-list">${(r.signals || []).slice(0, 3).join('<br>')}${r.safety_flags?.length > 0 ? '<br><strong style="color:#fbbf24">' + r.safety_flags.slice(0, 2).join('<br>') + '</strong>' : ''}</div>
+      <div class="signals-list">
+        ${(r.signals || []).slice(0, 2).join('<br>')}
+        ${r.tech_signals?.length > 0 ? '<br><span style="color:#60a5fa">' + r.tech_signals.slice(0, 2).join('<br>') + '</span>' : ''}
+        ${r.safety_flags?.length > 0 ? '<br><strong style="color:#fbbf24">' + r.safety_flags.slice(0, 1).join('<br>') + '</strong>' : ''}
+      </div>
       ${r.url ? `<a class="tc-link" href="${r.url}" target="_blank" onclick="event.stopPropagation()">Open DexScreener ↗</a>` : ''}
     </div>`;
   }).join('');
@@ -474,8 +484,11 @@ function filterGrid() {
       const results = data.results || [];
 
       if (results.length) {
-        countEl.textContent = `${results.length} coin${results.length !== 1 ? 's' : ''} found on DexScreener`;
-        renderGrid(results);  // show all, no cap
+        const byAddr = data.by_address;
+        countEl.textContent = byAddr
+          ? `${results.length} pair${results.length !== 1 ? 's' : ''} found for contract address`
+          : `${results.length} coin${results.length !== 1 ? 's' : ''} found on DexScreener`;
+        renderGrid(results);
       } else {
         countEl.textContent = `No coins found for "${q}"`;
         document.getElementById('tokenGrid').innerHTML =
