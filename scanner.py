@@ -120,6 +120,31 @@ class BreakoutScanner:
 
         return pairs
 
+    # ── Strategy Values (Entry / SL / TP / Breakout Level / RSI / Vol Z) ────
+
+    def compute_strategy_values(self, price_usd, chg_5m, chg_1h, chg_24h, vol_5m, vol_24h):
+        """Compute live trade parameters from the breakout strategy logic."""
+        entry_price = price_usd
+
+        # ATR approximation: 30% of 24h absolute move, clamped 10–30% of price
+        atr_pct = min(max(abs(chg_24h) / 100.0 * 0.3, 0.10), 0.30)
+        atr = atr_pct * entry_price
+
+        stop_loss   = entry_price - 1.5 * atr
+        take_profit = entry_price + 2.0 * (entry_price - stop_loss)
+
+        # Resistance = price before the 5m breakout candle
+        breakout_level = entry_price / (1.0 + chg_5m / 100.0) if chg_5m > 0 else entry_price
+
+        # RSI approximation from 1h + 5m momentum
+        rsi = round(min(95.0, max(15.0, 50.0 + chg_1h * 0.5 + chg_5m * 0.2)), 2)
+
+        # Vol z-score: how many avg-5m-candle units above mean is current 5m vol?
+        avg_5m = vol_24h / 288.0 if vol_24h > 0 else (vol_5m or 1)
+        vol_z  = round((vol_5m - avg_5m) / avg_5m, 2) if avg_5m > 0 else 0.0
+
+        return entry_price, stop_loss, take_profit, breakout_level, rsi, vol_z
+
     # ── Technical Score (Strategy 2) ─────────────────────────────────────────
 
     def score_technical(self, pair, rsi_low=55, rsi_high=75, volume_mult=2, atr_mult=1):
@@ -482,47 +507,69 @@ class BreakoutScanner:
         results = []
         for pair in all_pairs:
             breakout_score, breakout_signals = self.score_pair(pair)
-            tech_score, tech_signals = self.score_technical(pair)
 
             token_address = pair.get("baseToken", {}).get("address", "")
             chain = pair.get("chainId", "")
+
+            price  = float(pair.get("priceUsd", 0) or 0)
+            c5m    = float(pair.get("priceChange", {}).get("m5",  0) or 0)
+            c1h    = float(pair.get("priceChange", {}).get("h1",  0) or 0)
+            c24h   = float(pair.get("priceChange", {}).get("h24", 0) or 0)
+            v5m    = float(pair.get("volume", {}).get("m5",  0) or 0)
+            v24h   = float(pair.get("volume", {}).get("h24", 0) or 0)
+
+            entry, sl, tp, bl, rsi, vol_z = self.compute_strategy_values(price, c5m, c1h, c24h, v5m, v24h)
 
             if breakout_score >= 4:
                 safety_info = self.check_token_safety(chain, token_address)
             else:
                 safety_info = {"safety_score": 3, "is_safe": None, "safety_flags": [], "top_holder_pct": 0}
 
+            # Age, TXNS, Makers
+            created_at = pair.get("pairCreatedAt", 0)
+            age_hours  = (time.time() * 1000 - created_at) / 3_600_000 if created_at else 0
+            txns_h24   = pair.get("txns", {}).get("h24", {})
+            txns_24h   = int(txns_h24.get("buys", 0) or 0) + int(txns_h24.get("sells", 0) or 0)
+            makers     = int(pair.get("makers", 0) or 0)
+
             results.append({
-                "name":          pair.get("baseToken", {}).get("name", "?"),
-                "symbol":        pair.get("baseToken", {}).get("symbol", "?"),
-                "chain":         pair.get("chainId", "?"),
-                "dex":           pair.get("dexId", "?"),
-                "price_usd":     float(pair.get("priceUsd", 0) or 0),
-                "chg_5m":        float(pair.get("priceChange", {}).get("m5",  0) or 0),
-                "chg_1h":        float(pair.get("priceChange", {}).get("h1",  0) or 0),
-                "chg_24h":       float(pair.get("priceChange", {}).get("h24", 0) or 0),
-                "vol_5m":        float(pair.get("volume", {}).get("m5",  0) or 0),
-                "vol_24h":       float(pair.get("volume", {}).get("h24", 0) or 0),
-                "liquidity":     float(pair.get("liquidity", {}).get("usd", 0) or 0),
-                "market_cap":    float(pair.get("marketCap", 0) or pair.get("fdv", 0) or 0),
-                "buys_5m":       int(pair.get("txns", {}).get("m5", {}).get("buys", 0) or 0),
-                "sells_5m":      int(pair.get("txns", {}).get("m5", {}).get("sells", 0) or 0),
-                # Breakout score (existing)
-                "score":         breakout_score,
-                "is_breakout":   breakout_score >= self.BREAKOUT_MIN_SCORE,
-                "is_strong":     breakout_score >= self.STRONG_BREAKOUT,
-                "signals":       breakout_signals,
-                # Technical score (new)
-                "tech_score":    tech_score,
-                "tech_signals":  tech_signals,
+                "name":           pair.get("baseToken", {}).get("name", "?"),
+                "symbol":         pair.get("baseToken", {}).get("symbol", "?"),
+                "chain":          pair.get("chainId", "?"),
+                "dex":            pair.get("dexId", "?"),
+                "price_usd":      price,
+                "chg_5m":         c5m,
+                "chg_1h":         c1h,
+                "chg_24h":        c24h,
+                "vol_5m":         v5m,
+                "vol_24h":        v24h,
+                "liquidity":      float(pair.get("liquidity", {}).get("usd", 0) or 0),
+                "market_cap":     float(pair.get("marketCap", 0) or pair.get("fdv", 0) or 0),
+                "buys_5m":        int(pair.get("txns", {}).get("m5", {}).get("buys", 0) or 0),
+                "sells_5m":       int(pair.get("txns", {}).get("m5", {}).get("sells", 0) or 0),
+                "age_hours":      round(age_hours, 1),
+                "txns_24h":       txns_24h,
+                "makers":         makers,
+                # Breakout score
+                "score":          breakout_score,
+                "is_breakout":    breakout_score >= self.BREAKOUT_MIN_SCORE,
+                "is_strong":      breakout_score >= self.STRONG_BREAKOUT,
+                "signals":        breakout_signals,
+                # Strategy values (replace technical score)
+                "entry_price":    entry,
+                "stop_loss":      sl,
+                "take_profit":    tp,
+                "breakout_level": bl,
+                "rsi":            rsi,
+                "vol_z":          vol_z,
                 # Safety
-                "pair_address":  pair.get("pairAddress", ""),
-                "token_address": token_address,
-                "safety_score":  safety_info.get("safety_score", 3),
-                "is_safe":       safety_info.get("is_safe"),
-                "safety_flags":  safety_info.get("safety_flags", []),
-                "url":           pair.get("url", ""),
-                "scanned_at":    datetime.now().isoformat(),
+                "pair_address":   pair.get("pairAddress", ""),
+                "token_address":  token_address,
+                "safety_score":   safety_info.get("safety_score", 3),
+                "is_safe":        safety_info.get("is_safe"),
+                "safety_flags":   safety_info.get("safety_flags", []),
+                "url":            pair.get("url", ""),
+                "scanned_at":     datetime.now().isoformat(),
             })
 
         results.sort(key=lambda x: x["score"], reverse=True)

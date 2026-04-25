@@ -35,6 +35,7 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
 .p-green{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
 .p-red{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)}
 .p-yellow{background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.25)}
+.p-blue{background:rgba(96,165,250,.12);color:#60a5fa;border:1px solid rgba(96,165,250,.25)}
 .p-muted{background:#1a2540;color:#64748b}
 
 /* ── Stats ── */
@@ -84,8 +85,20 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
 .btn-clear:hover{color:#94a3b8;background:#243050}
 .search-status{font-size:11px;color:#475569;margin-top:8px;min-height:16px}
 
-/* ── Tech score badge ── */
-.tech-badge{font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3)}
+/* ── Strategy values grid ── */
+.strat-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:10px;margin:6px 0 6px 0}
+.strat-row{display:flex;justify-content:space-between;padding:2px 5px;border-radius:4px}
+.strat-row.s-entry{background:rgba(96,165,250,.08)}
+.strat-row.s-sl{background:rgba(239,68,68,.08)}
+.strat-row.s-tp{background:rgba(34,197,94,.08)}
+.strat-row.s-bl{background:rgba(251,191,36,.07)}
+.strat-label{color:#475569;font-weight:700}
+.sv-entry{color:#60a5fa;font-weight:800}
+.sv-sl{color:#f87171;font-weight:800}
+.sv-tp{color:#4ade80;font-weight:800}
+.sv-bl{color:#fbbf24;font-weight:800}
+.sv-rsi{font-weight:800}
+.sv-volz{font-weight:800}
 
 /* ── Safety badge ── */
 .safety-badge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;margin-bottom:6px;display:inline-block}
@@ -324,41 +337,35 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
     </div>
   </div>
 
-  <!-- Section 2b: Technical Score Breakdown -->
+  <!-- Section 2b: Strategy Values Breakdown -->
   <div class="now-card neutral">
-    <div class="now-label">Section 2b: Technical Score (T:0–12) — How It's Calculated</div>
-    <div class="now-title">Strategy 2 — Trend + RSI + Volume + ATR</div>
+    <div class="now-label">Section 2b: Strategy Values — Entry · Stop Loss · Take Profit · RSI · Vol Z</div>
+    <div class="now-title">Live Trade Parameters — What Each Number Means</div>
     <div style="margin-top:12px;font-size:12px;color:#94a3b8;line-height:1.9">
 
-      <strong style="color:#60a5fa">+2 pts — Uptrend (EMA Proxy)</strong><br>
-      1h price change is positive AND 24h is not down more than 5%. Means short-term and medium-term trend both up.<br><br>
+      <strong style="color:#60a5fa">📍 Entry Price</strong><br>
+      The current live price — this is your entry point if you decide to trade.<br><br>
 
-      <strong style="color:#60a5fa">+2 pts — RSI in Buy Zone (55–75)</strong><br>
-      Approximated from 1h momentum: RSI ≈ 50 + (1h change × 1.5). Sweet spot means momentum without being overbought.<br><br>
+      <strong style="color:#f87171">⛔ Stop Loss (SL)</strong><br>
+      Computed as: Entry − 1.5 × ATR (where ATR ≈ 30% of the 24h price range). This is where you exit if the trade goes wrong. The percentage shows how far below entry the stop is.<br><br>
 
-      <strong style="color:#60a5fa">+3 pts — Volume Surge</strong><br>
-      1h volume is 2× the hourly average (24h vol ÷ 24). Strong institutional or whale buying.<br><br>
+      <strong style="color:#4ade80">🎯 Take Profit (TP)</strong><br>
+      Computed as: Entry + 2 × Risk (Risk = Entry − SL). This gives a 2:1 reward-to-risk ratio minimum. Sell 50% of your position here, and the rest at 2× TP.<br><br>
 
-      <strong style="color:#60a5fa">+1 pt — Volume Above Average</strong><br>
-      1h volume beats hourly average but not by 2×. Moderate interest.<br><br>
+      <strong style="color:#fbbf24">📊 Breakout Level</strong><br>
+      The resistance price just before the 5-minute breakout candle. This is the key level that was broken — if price falls back below it, the breakout may be failing.<br><br>
 
-      <strong style="color:#60a5fa">+3 pts — Full Breakout</strong><br>
-      24h price is up +5%+ AND 1h is still positive. Confirmed uptrend with continuation.<br><br>
+      <strong style="color:#c084fc">📈 RSI (Approximated)</strong><br>
+      Estimated from 1h + 5m momentum: RSI ≈ 50 + (1h% × 0.5) + (5m% × 0.2). Range 55–75 = healthy breakout zone. Above 75 = overbought (caution). Below 40 = oversold (weak).<br><br>
 
-      <strong style="color:#60a5fa">+1 pt — Soft Breakout</strong><br>
-      6h price up +3%+ AND 1h positive. Early breakout forming.<br><br>
-
-      <strong style="color:#60a5fa">+2 pts — High Volatility (ATR)</strong><br>
-      5-minute absolute move &gt; 5%. High ATR means strong momentum — good for quick trades.<br><br>
-
-      <strong style="color:#60a5fa">+1 pt — Moderate Volatility</strong><br>
-      5-minute move is 2–5%. Some momentum present.<br><br>
+      <strong style="color:#94a3b8">📊 Vol Z-Score</strong><br>
+      How many times the average 5-minute volume is the current 5m volume. Average = 24h volume ÷ 288 candles. Z &gt; 2 = strong volume surge (green). Z &lt; 0 = below average (weak).<br><br>
 
       <div style="margin-top:8px;padding:8px 10px;background:rgba(96,165,250,0.08);border-left:3px solid #60a5fa;border-radius:4px">
-        <strong style="color:#60a5fa">💡 When to use which score?</strong><br>
-        Use <strong>Breakout Score</strong> for short momentum plays (5min–4h holds).<br>
-        Use <strong>Technical Score</strong> for trend-following trades (1h–7day holds).<br>
-        Best entries: <strong>B ≥ 6 AND T ≥ 7</strong> — both scores agree = higher confidence.
+        <strong style="color:#60a5fa">💡 How to use these values?</strong><br>
+        Use <strong>Breakout Score B ≥ 5</strong> as your filter — only trade tokens that pass.<br>
+        Use <strong>Entry / SL / TP</strong> directly to set your limit orders and stop-loss.<br>
+        Best setups: <strong>B ≥ 6 + RSI 55–75 + Vol Z &gt; 2</strong> — all three conditions aligned.
       </div>
     </div>
   </div>
@@ -601,11 +608,12 @@ function renderScanner(data, scanCount) {
       <div class="now-label">Best Breakout Right Now</div>
       <div class="now-title">${best.is_strong ? '🔥' : '🎯'} ${best.symbol} on ${best.chain.toUpperCase()}
         — +${best.chg_5m?.toFixed(1)}% in 5min</div>
-      <div class="now-sub">Score ${best.score}/10 · Liquidity $${fmt(best.liquidity)} · MC $${fmt(best.market_cap)}</div>
+      <div class="now-sub">B:${best.score}/10 · Liq $${fmt(best.liquidity)} · MC $${fmt(best.market_cap)} · RSI ${best.rsi} · Vol Z ${best.vol_z}</div>
       <div class="pills">
-        <span class="pill p-purple">${best.score}/10 score</span>
-        <span class="pill p-green">+${best.chg_5m?.toFixed(1)}%/5m</span>
-        <span class="pill p-yellow">Vol $${fmt(best.vol_5m)}/5m</span>
+        <span class="pill p-purple">B:${best.score}/10</span>
+        <span class="pill p-blue">Entry ${fmtPrice(best.entry_price)}</span>
+        <span class="pill p-red">SL ${fmtPrice(best.stop_loss)} (${best.entry_price > 0 ? ((best.stop_loss - best.entry_price)/best.entry_price*100).toFixed(1) : '—'}%)</span>
+        <span class="pill p-green">TP ${fmtPrice(best.take_profit)} (+${best.entry_price > 0 ? ((best.take_profit - best.entry_price)/best.entry_price*100).toFixed(1) : '—'}%)</span>
         ${best.url ? `<a href="${best.url}" target="_blank" class="pill p-muted" style="text-decoration:none">View on DexScreener ↗</a>` : ''}
       </div>`;
   } else {
@@ -682,18 +690,19 @@ function renderGrid(tokens) {
     const chgColor = (v) => v > 0 ? '#4ade80' : v < 0 ? '#f87171' : '#94a3b8';
     const safetyBadge = r.is_safe === true ? 'safe' : r.is_safe === false ? 'risky' : 'unknown';
     const safetyText  = r.is_safe === true ? '✅ SAFE' : r.is_safe === false ? '❌ RISKY' : '⚠️ UNVERIFIED';
+    const slPct = r.entry_price > 0 ? ((r.stop_loss  - r.entry_price) / r.entry_price * 100).toFixed(1) : '—';
+    const tpPct = r.entry_price > 0 ? ((r.take_profit - r.entry_price) / r.entry_price * 100).toFixed(1) : '—';
+    const rsiColor = r.rsi > 70 ? '#f87171' : r.rsi > 55 ? '#4ade80' : '#94a3b8';
+    const volzColor = r.vol_z > 2 ? '#22c55e' : '#94a3b8';
     return `
     <div class="token-card ${cls}" onclick="window.open('${r.url}','_blank')">
       <div class="tc-top">
         <span class="tc-name">${r.symbol}</span>
-        <div style="display:flex;gap:4px;align-items:center">
-          <span class="score-badge ${sbCls}" title="Breakout Score">B:${r.score}/10</span>
-          <span class="tech-badge" title="Technical Score (EMA/RSI/Vol/ATR)">T:${r.tech_score ?? '—'}/12</span>
-        </div>
+        <span class="score-badge ${sbCls}" title="Breakout Score">B:${r.score}/10</span>
       </div>
       <div class="safety-badge ${safetyBadge}">${safetyText}</div>
       <div class="tc-chain">${r.chain.toUpperCase()} · ${r.dex}</div>
-      <div class="tc-price">$${r.price_usd?.toFixed(6) || '—'}</div>
+      <div class="tc-price">${fmtPrice(r.price_usd)}</div>
       <div class="tc-stats">
         <div>5m: <span style="color:${chgColor(r.chg_5m)}">${r.chg_5m >= 0 ? '+' : ''}${r.chg_5m?.toFixed(1)}%</span></div>
         <div>1h: <span style="color:${chgColor(r.chg_1h)}">${r.chg_1h >= 0 ? '+' : ''}${r.chg_1h?.toFixed(1)}%</span></div>
@@ -701,10 +710,39 @@ function renderGrid(tokens) {
         <div>MC: <span>$${fmt(r.market_cap)}</span></div>
         <div>Vol/5m: <span>$${fmt(r.vol_5m)}</span></div>
         <div>B/S: <span>${r.buys_5m}/${r.sells_5m}</span></div>
+        <div>Age: <span style="color:#fbbf24">${fmtAge(r.age_hours)}</span></div>
+        <div>TXNS: <span style="color:#c084fc">${r.txns_24h > 0 ? r.txns_24h.toLocaleString() : '—'}</span></div>
+        <div>Vol/24h: <span>$${fmt(r.vol_24h)}</span></div>
+        <div>Makers: <span style="color:#60a5fa">${r.makers > 0 ? r.makers.toLocaleString() : '—'}</span></div>
+      </div>
+      <div class="strat-grid">
+        <div class="strat-row s-entry" style="grid-column:1/-1">
+          <span class="strat-label">Entry</span>
+          <span class="sv-entry">${fmtPrice(r.entry_price)}</span>
+        </div>
+        <div class="strat-row s-sl">
+          <span class="strat-label">Stop Loss</span>
+          <span class="sv-sl">${fmtPrice(r.stop_loss)} <span style="font-size:9px">(${slPct}%)</span></span>
+        </div>
+        <div class="strat-row s-tp">
+          <span class="strat-label">Take Profit</span>
+          <span class="sv-tp">${fmtPrice(r.take_profit)} <span style="font-size:9px">(+${tpPct}%)</span></span>
+        </div>
+        <div class="strat-row s-bl">
+          <span class="strat-label">BOut Level</span>
+          <span class="sv-bl">${fmtPrice(r.breakout_level)}</span>
+        </div>
+        <div class="strat-row">
+          <span class="strat-label">RSI</span>
+          <span class="sv-rsi" style="color:${rsiColor}">${r.rsi}</span>
+        </div>
+        <div class="strat-row">
+          <span class="strat-label">Vol Z</span>
+          <span class="sv-volz" style="color:${volzColor}">${r.vol_z}</span>
+        </div>
       </div>
       <div class="signals-list">
         ${(r.signals || []).slice(0, 2).join('<br>')}
-        ${r.tech_signals?.length > 0 ? '<br><span style="color:#60a5fa">' + r.tech_signals.slice(0, 2).join('<br>') + '</span>' : ''}
         ${r.safety_flags?.length > 0 ? '<br><strong style="color:#fbbf24">' + r.safety_flags.slice(0, 1).join('<br>') + '</strong>' : ''}
       </div>
       ${r.url ? `<a class="tc-link" href="${r.url}" target="_blank" onclick="event.stopPropagation()">Open DexScreener ↗</a>` : ''}
@@ -953,6 +991,21 @@ function fmt(n) {
   if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
   if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
   return n.toFixed(0);
+}
+function fmtPrice(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  if (n >= 1)           return '$' + n.toFixed(4);
+  if (n >= 0.01)        return '$' + n.toFixed(6);
+  if (n >= 0.0001)      return '$' + n.toFixed(8);
+  if (n >= 0.000001)    return '$' + n.toFixed(10);
+  if (n >= 0.00000001)  return '$' + n.toFixed(12);
+  return '$' + n.toFixed(14);
+}
+function fmtAge(h) {
+  if (!h || isNaN(h)) return '—';
+  if (h < 1)   return Math.round(h * 60) + 'm';
+  if (h < 24)  return h.toFixed(1) + 'h';
+  return Math.floor(h / 24) + 'd';
 }
 
 // Initial load via REST (while SSE warms up)
