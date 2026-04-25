@@ -40,14 +40,47 @@ class BreakoutScanner:
 
     # ── API helpers ──────────────────────────────────────────────────────────
 
-    def _get(self, url, params=None, timeout=10):
-        try:
-            r = self.session.get(url, params=params, timeout=timeout)
-            r.raise_for_status()
-            return r.json()
-        except Exception as e:
-            print(f"  [API error] {url[:60]}… → {e}")
-            return None
+    _USER_AGENTS = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
+    ]
+    _ua_index = 0
+
+    def _get(self, url, params=None, timeout=20, retries=3):
+        for attempt in range(retries):
+            try:
+                # Rotate user agent on each retry
+                ua = self._USER_AGENTS[(self._ua_index + attempt) % len(self._USER_AGENTS)]
+                headers = {'User-Agent': ua, 'Accept': 'application/json'}
+                r = self.session.get(url, params=params, timeout=timeout, headers=headers)
+                r.raise_for_status()
+                self._ua_index = (self._ua_index + 1) % len(self._USER_AGENTS)
+                return r.json()
+            except Exception as e:
+                print(f"  [API error attempt {attempt+1}/{retries}] {url[:60]}… → {e}")
+                if attempt < retries - 1:
+                    time.sleep(2 ** attempt)  # 1s, 2s backoff
+        return None
+
+    def test_connectivity(self):
+        """Test DexScreener API reachability. Returns dict with status per endpoint."""
+        results = {}
+        endpoints = {
+            "boosted": f"{self.DEXSCREENER_BASE}/token-boosts/latest/v1",
+            "search":  f"{self.DEXSCREENER_BASE}/latest/dex/search?q=pepe",
+        }
+        for name, url in endpoints.items():
+            try:
+                r = self.session.get(url, timeout=15, headers={
+                    'User-Agent': self._USER_AGENTS[0],
+                    'Accept': 'application/json',
+                })
+                results[name] = {"status": r.status_code, "ok": r.status_code == 200, "size": len(r.text)}
+            except Exception as e:
+                results[name] = {"status": 0, "ok": False, "error": str(e)}
+        return results
 
     def get_boosted_tokens(self):
         data = self._get(f"{self.DEXSCREENER_BASE}/token-boosts/latest/v1")

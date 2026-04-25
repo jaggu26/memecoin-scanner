@@ -229,6 +229,20 @@ def api_price():
     p = (data or {}).get("pair") or {}
     return jsonify({"price": float(p.get("priceUsd", 0) or 0)})
 
+@app.route("/api/debug")
+@login_required
+def api_debug():
+    """Test DexScreener connectivity and return diagnostics."""
+    import platform
+    conn = scanner.test_connectivity()
+    return jsonify({
+        "connectivity": conn,
+        "scan_count": state["scan_count"],
+        "tokens_in_memory": len(state["scan_results"]),
+        "server": platform.node(),
+        "ts": datetime.now().isoformat(),
+    })
+
 @app.route("/api/status")
 @login_required
 def api_status():
