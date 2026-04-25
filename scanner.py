@@ -315,9 +315,26 @@ class BreakoutScanner:
             created_at = pair.get("pairCreatedAt", 0)
             age_hours  = (time.time() * 1000 - created_at) / 3_600_000 if created_at else 9999
 
+            total_txns = buys_5m + sells_5m
+
+            # ── FIX 1: Zero activity = no breakout ──────────────────────────
+            if buys_5m == 0 and sells_5m == 0:
+                signals.append("⛔ No transactions in 5m — not a real breakout")
+                return 0, signals
+
+            # ── FIX 2: Dump penalty — 1h strongly negative ──────────────────
+            if chg_1h <= -15:
+                score -= 2; signals.append(f"🔻 1h dump: {chg_1h:.1f}% — momentum lost")
+
+            # ── FIX 3: Sell-dominant pressure penalty ────────────────────────
+            if total_txns >= 10:
+                sell_ratio = sells_5m / total_txns
+                if sell_ratio >= 0.65:
+                    score -= 1; signals.append(f"🔴 Sell pressure: {buys_5m}B/{sells_5m}S ({sell_ratio*100:.0f}% sells)")
+
             # ── Signal 1: Volume spike ──────────────────────────────────────
-            # 5m volume > 3% of 24h = extremely active right now
-            if vol_24h > 0:
+            # Require at least 3 transactions to avoid single-whale false signals
+            if vol_24h > 0 and total_txns >= 3:
                 vol_ratio = vol_5m / vol_24h * 100
                 if vol_ratio >= 5:
                     score += 3; signals.append(f"🔥 Huge vol spike: {vol_ratio:.1f}% of 24h in 5m")
@@ -341,6 +358,9 @@ class BreakoutScanner:
                 score += 2; signals.append(f"✅ Liquidity: ${liquidity:,.0f} (safe)")
             elif liquidity >= 30_000:
                 score += 1; signals.append(f"⚠️ Liquidity: ${liquidity:,.0f} (OK)")
+            elif liquidity < 5_000:
+                # FIX 4: Near-zero liquidity is a major red flag — bigger penalty
+                score -= 3; signals.append(f"🚨 DANGER: Liquidity ${liquidity:,.0f} (near-zero, rug risk!)")
             elif liquidity < 10_000:
                 score -= 2; signals.append(f"❌ Low liquidity: ${liquidity:,.0f} (rug risk!)")
 
@@ -353,7 +373,6 @@ class BreakoutScanner:
                 signals.append(f"📦 MC too large: ${market_cap/1e6:.1f}M (less upside)")
 
             # ── Signal 5: Buy pressure & honeypot detection ──────────────────
-            total_txns = buys_5m + sells_5m
             if sells_5m == 0 and buys_5m > 0:
                 score -= 2; signals.append(f"🚨 No sells detected: {buys_5m}B/0S (honeypot risk)")
             elif total_txns > 0:
