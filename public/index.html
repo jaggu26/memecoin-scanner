@@ -266,7 +266,11 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
       ✅ <strong>Timing:</strong> Real-time alerts when price momentum is strongest<br><br>
       <strong>Live data from:</strong> DexScreener (prices, volume) + GoPlus (security checks)<br>
       <strong>Scanned every:</strong> 30 seconds (auto-refresh)<br>
-      <strong>Perfect for:</strong> Quick memecoin swing trades (5min–7day holds)
+      <strong>Perfect for:</strong> Quick memecoin swing trades (5min–7day holds)<br><br>
+      <strong style="color:#fbbf24">🔒 Minimum Quality Filters (pre-screened before scoring):</strong><br>
+      • <strong>Age &gt; 6 hours</strong> — tokens younger than 6h are too unverified<br>
+      • <strong>Market Cap &gt; $500K</strong> — micro-caps below $500K are extreme risk<br>
+      • <strong>Liquidity ≥ 3% of MC</strong> — lower ratio = high rug pull risk, auto-excluded
     </div>
   </div>
 
@@ -286,12 +290,12 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
       • <strong style="color:#fbbf24">⚠️ UNVERIFIED</strong> — Could not verify, check manually<br><br>
       <strong style="color:#c084fc">📊 KEY METRICS</strong><br>
       • <strong>5m/1h:</strong> Price % change (green = up, red = down)<br>
-      • <strong>Liq:</strong> Liquidity ($) — higher is safer<br>
-      • <strong>MC:</strong> Market cap — sweet spot is $200K–$10M<br>
-      • <strong>Vol:</strong> Trading volume in 5 min<br>
+      • <strong>Liq:</strong> Liquidity ($) — scored as % of MC now (not absolute); ≥5% = safe<br>
+      • <strong>MC:</strong> Market cap — sweet spot is $300K–$5M (tightened from old $200K–$10M)<br>
+      • <strong>Vol:</strong> Trading volume in 5 min — compared vs 1h rolling avg (not just 24h ratio)<br>
       • <strong>B/S:</strong> Buys vs Sells — more buys = bullish<br><br>
       <strong style="color:#c084fc">🕐 NEW FIELDS</strong><br>
-      • <strong style="color:#fbbf24">Age:</strong> How old the token pair is (e.g. <em>36m</em>, <em>4.8h</em>, <em>2d</em>). Prefer 2h–48h old tokens — fresh enough to still have upside, old enough to be real.<br>
+      • <strong style="color:#fbbf24">Age:</strong> How old the token pair is (e.g. <em>6h</em>, <em>4.8h</em>, <em>2d</em>). Prime window is 6h–48h — pre-filtered below 6h automatically.<br>
       • <strong style="color:#c084fc">TXNS:</strong> Total buy + sell transactions in the last 24 hours. Higher = more active community and real trading interest.<br>
       • <strong>Vol/24h:</strong> 24-hour total trading volume in USD. Compare with 5m Vol to gauge how much of the daily volume is happening right now.<br>
       • <strong style="color:#60a5fa">Makers:</strong> Unique wallet addresses that placed orders (shows — on free API). Higher = more distributed trading, less manipulation risk.
@@ -305,10 +309,10 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
     <div style="margin-top:12px;font-size:12px;color:#94a3b8;line-height:1.9">
 
       <strong style="color:#22c55e">+3 pts — Huge Volume Spike</strong><br>
-      5-minute volume ≥ 5% of the full 24h volume (extreme buying activity right now)<br><br>
+      5m volume ≥ 4× the 1h rolling average (extreme buying right now)<br><br>
 
       <strong style="color:#22c55e">+2 pts — Volume Spike</strong><br>
-      5-minute volume ≥ 3% of 24h volume (significant buying surge)<br><br>
+      5m volume ≥ 2× the 1h rolling average (significant surge)<br><br>
 
       <strong style="color:#22c55e">+3 pts — Strong Price Pump</strong><br>
       Price up +15%+ in the last 5 minutes (very strong momentum)<br><br>
@@ -316,11 +320,14 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
       <strong style="color:#22c55e">+2 pts — Solid Price Move</strong><br>
       Price up +8–14% in 5 minutes<br><br>
 
-      <strong style="color:#22c55e">+2 pts — Safe Liquidity</strong><br>
-      Liquidity ≥ $100K (less rug risk, easier to exit)<br><br>
+      <strong style="color:#22c55e">+2 pts — Multi-Timeframe Acceleration ⚡ NEW</strong><br>
+      Both 5m AND 1h are positive (+1 pt) AND 5m % &gt; 1h % = momentum accelerating (+1 more pt). This is the strongest real breakout signal.<br><br>
+
+      <strong style="color:#22c55e">+2 pts — Safe Liquidity Ratio</strong><br>
+      Liquidity ≥ 5% of Market Cap (relative safety — $50K liq on $500K MC is safer than $100K liq on $20M MC)<br><br>
 
       <strong style="color:#22c55e">+2 pts — Market Cap Sweet Spot</strong><br>
-      MC between $200K–$10M (enough room to 10x, not already mooned)<br><br>
+      MC $300K–$5M = best 10x zone. $5M–$15M = still room. (Tightened from old $200K–$10M)<br><br>
 
       <strong style="color:#22c55e">+2 pts — Strong Buy Pressure</strong><br>
       ≥100 transactions in 5m with 65%+ buys vs sells<br><br>
@@ -328,8 +335,8 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
       <strong style="color:#22c55e">+1 pt — 1h Momentum Confirmed</strong><br>
       Price also up +20%+ over the last 1 hour<br><br>
 
-      <strong style="color:#22c55e">+1 pt — Fresh Token</strong><br>
-      Token is 2–48 hours old (early opportunity)<br><br>
+      <strong style="color:#22c55e">+1 pt — Prime Age Window</strong><br>
+      Token is 6–48 hours old (pre-filter removes tokens under 6h automatically)<br><br>
 
       <strong style="color:#ef4444">−2 pts — Honeypot Warning</strong><br>
       Zero sells in 5m while buys exist (can't sell = honeypot risk)<br><br>
@@ -337,8 +344,11 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
       <strong style="color:#ef4444">−2 pts — Dangerous Price Drop</strong><br>
       Price fell −10%+ in 5 minutes (dump in progress)<br><br>
 
-      <strong style="color:#ef4444">−2 pts — Very Low Liquidity</strong><br>
-      Liquidity under $10K (extreme rug risk)
+      <strong style="color:#ef4444">−3 pts — Liquidity Drain ⚡ NEW</strong><br>
+      Liquidity dropped 30%+ since the last scan — possible rug pull in progress. Token auto-penalised.<br><br>
+
+      <strong style="color:#ef4444">−3 pts — Dangerous Liquidity Ratio</strong><br>
+      Liquidity under 3% of MC — already filtered out before scoring, but shown as red flag if borderline
     </div>
   </div>
 

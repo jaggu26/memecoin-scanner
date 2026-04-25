@@ -16,6 +16,11 @@ class BreakoutScanner:
     BREAKOUT_MIN_SCORE = 5   # Score >= 5 → Alert
     STRONG_BREAKOUT    = 7   # Score >= 7 → Strong Alert
 
+    # ── Minimum quality filters (change these to tune what gets scanned) ──────
+    MIN_AGE_HOURS    = 6        # Skip tokens younger than 6h (too unverified)
+    MIN_MARKET_CAP   = 500_000  # Skip tokens with MC below $500K
+    MIN_LIQ_MC_RATIO = 0.03     # Skip if liquidity < 3% of market cap (rug risk)
+
     # Chain ID mapping: DexScreener → GoPlus
     CHAIN_MAP = {
         "ethereum": "1",
@@ -37,6 +42,7 @@ class BreakoutScanner:
         })
         self.scan_history = []   # last 200 results
         self._safety_cache = {}  # token_address → (timestamp, result)
+        self._prev_liquidity = {}  # pair_address → liquidity from last scan (for drain detection)
 
     # ── API helpers ──────────────────────────────────────────────────────────
 
@@ -349,13 +355,16 @@ class BreakoutScanner:
 
     # ── Scoring ──────────────────────────────────────────────────────────────
 
-    def score_pair(self, pair):
-        """Score a DexScreener pair from 0-10. Returns (score, signals[])."""
+    def score_pair(self, pair, prev_liquidity=None):
+        """
+        Hybrid breakout score 0-10.
+        Combines original DexScreener-based signals with improvements from
+        the candle-strategy: liq/MC ratio, multi-TF acceleration, liq drain detection.
+        """
         score = 0
         signals = []
 
         try:
-            # ── Pull raw fields ─────────────────────────────────────────────
             vol_5m  = float(pair.get("volume", {}).get("m5",  0) or 0)
             vol_1h  = float(pair.get("volume", {}).get("h1",  0) or 0)
             vol_24h = float(pair.get("volume", {}).get("h24", 0) or 0)
@@ -366,42 +375,38 @@ class BreakoutScanner:
             liquidity  = float(pair.get("liquidity", {}).get("usd", 0) or 0)
             market_cap = float(pair.get("marketCap", 0) or pair.get("fdv", 0) or 0)
 
-            txns_5m = pair.get("txns", {}).get("m5", {})
-            buys_5m = int(txns_5m.get("buys",  0) or 0)
-            sells_5m= int(txns_5m.get("sells", 0) or 0)
+            txns_5m  = pair.get("txns", {}).get("m5", {})
+            buys_5m  = int(txns_5m.get("buys",  0) or 0)
+            sells_5m = int(txns_5m.get("sells", 0) or 0)
+            total_txns = buys_5m + sells_5m
 
             created_at = pair.get("pairCreatedAt", 0)
             age_hours  = (time.time() * 1000 - created_at) / 3_600_000 if created_at else 9999
 
-            total_txns = buys_5m + sells_5m
-
-            # ── FIX 1: Zero activity = no breakout ──────────────────────────
+            # ── Guard: zero activity = no real breakout ──────────────────────
             if buys_5m == 0 and sells_5m == 0:
-                signals.append("⛔ No transactions in 5m — not a real breakout")
+                signals.append("⛔ No 5m transactions — skip")
                 return 0, signals
 
-            # ── FIX 2: Dump penalty — 1h strongly negative ──────────────────
+            # ── Penalties ───────────────────────────────────────────────────
             if chg_1h <= -15:
-                score -= 2; signals.append(f"🔻 1h dump: {chg_1h:.1f}% — momentum lost")
+                score -= 2; signals.append(f"🔻 1h dump: {chg_1h:.1f}% — avoid")
+            if total_txns >= 10 and sells_5m / total_txns >= 0.65:
+                score -= 1; signals.append(f"🔴 Sell-dominant: {buys_5m}B/{sells_5m}S")
 
-            # ── FIX 3: Sell-dominant pressure penalty ────────────────────────
-            if total_txns >= 10:
-                sell_ratio = sells_5m / total_txns
-                if sell_ratio >= 0.65:
-                    score -= 1; signals.append(f"🔴 Sell pressure: {buys_5m}B/{sells_5m}S ({sell_ratio*100:.0f}% sells)")
+            # ── Signal 1: Volume vs 1h rolling avg (new: better baseline) ───
+            # 1h avg gives a recent baseline; fall back to 24h if no 1h data
+            avg_5m = (vol_1h / 12) if vol_1h > 0 else (vol_24h / 288 if vol_24h > 0 else 0)
+            if avg_5m > 0 and total_txns >= 3:
+                vol_ratio = vol_5m / avg_5m
+                if vol_ratio >= 4:
+                    score += 3; signals.append(f"🔥 Huge vol: {vol_ratio:.1f}x recent avg")
+                elif vol_ratio >= 2:
+                    score += 2; signals.append(f"📈 Vol spike: {vol_ratio:.1f}x recent avg")
+                elif vol_ratio >= 1.2:
+                    score += 1; signals.append(f"📊 Vol rising: {vol_ratio:.1f}x recent avg")
 
-            # ── Signal 1: Volume spike ──────────────────────────────────────
-            # Require at least 3 transactions to avoid single-whale false signals
-            if vol_24h > 0 and total_txns >= 3:
-                vol_ratio = vol_5m / vol_24h * 100
-                if vol_ratio >= 5:
-                    score += 3; signals.append(f"🔥 Huge vol spike: {vol_ratio:.1f}% of 24h in 5m")
-                elif vol_ratio >= 3:
-                    score += 2; signals.append(f"📈 Vol spike: {vol_ratio:.1f}% of 24h in 5m")
-                elif vol_ratio >= 1.5:
-                    score += 1; signals.append(f"📊 Vol rising: {vol_ratio:.1f}% of 24h in 5m")
-
-            # ── Signal 2: Price momentum (5m) ───────────────────────────────
+            # ── Signal 2: Price momentum 5m ──────────────────────────────────
             if chg_5m >= 15:
                 score += 3; signals.append(f"🚀 Price +{chg_5m:.1f}% in 5m (very strong)")
             elif chg_5m >= 8:
@@ -411,42 +416,61 @@ class BreakoutScanner:
             elif chg_5m <= -10:
                 score -= 2; signals.append(f"🔻 Price {chg_5m:.1f}% in 5m (avoid)")
 
-            # ── Signal 3: Liquidity (safety) ────────────────────────────────
-            if liquidity >= 100_000:
-                score += 2; signals.append(f"✅ Liquidity: ${liquidity:,.0f} (safe)")
-            elif liquidity >= 30_000:
-                score += 1; signals.append(f"⚠️ Liquidity: ${liquidity:,.0f} (OK)")
-            elif liquidity < 5_000:
-                # FIX 4: Near-zero liquidity is a major red flag — bigger penalty
-                score -= 3; signals.append(f"🚨 DANGER: Liquidity ${liquidity:,.0f} (near-zero, rug risk!)")
-            elif liquidity < 10_000:
-                score -= 2; signals.append(f"❌ Low liquidity: ${liquidity:,.0f} (rug risk!)")
+            # ── Signal 3 (NEW): Multi-timeframe acceleration ─────────────────
+            # Both TFs positive = trend confirmed; 5m > 1h = momentum accelerating
+            if chg_5m > 0 and chg_1h > 0:
+                score += 1; signals.append(f"📈 Both TFs up: 5m={chg_5m:+.1f}% 1h={chg_1h:+.1f}%")
+                if chg_5m > chg_1h:
+                    score += 1; signals.append(f"⚡ Accelerating: 5m > 1h (momentum building)")
 
-            # ── Signal 4: Market cap sweet spot ─────────────────────────────
-            if 200_000 <= market_cap <= 10_000_000:
-                score += 2; signals.append(f"🎯 MC ${market_cap/1e6:.2f}M (10x potential)")
-            elif 50_000 <= market_cap < 200_000:
-                score += 1; signals.append(f"🎯 MC ${market_cap:,.0f} (early, risky)")
+            # ── Signal 4: Liquidity — relative to MC (new) + absolute floor ─
+            liq_ratio = liquidity / market_cap if market_cap > 0 else 0
+            if liquidity < 5_000:
+                score -= 3; signals.append(f"🚨 Near-zero liq: ${liquidity:,.0f} (rug!)")
+            elif liq_ratio >= 0.05:
+                score += 2; signals.append(f"✅ Liq/MC {liq_ratio*100:.1f}% — ${liquidity:,.0f} (safe)")
+            elif liq_ratio >= 0.02:
+                score += 1; signals.append(f"⚠️ Liq/MC {liq_ratio*100:.1f}% — ${liquidity:,.0f} (OK)")
+            elif liq_ratio < 0.01 and liquidity < 30_000:
+                score -= 2; signals.append(f"❌ Liq/MC {liq_ratio*100:.2f}% — rug risk!")
+
+            # ── Signal 5 (NEW): Liquidity drain vs previous scan ────────────
+            if prev_liquidity and prev_liquidity > 0 and liquidity > 0:
+                drain_pct = (prev_liquidity - liquidity) / prev_liquidity * 100
+                if drain_pct >= 30:
+                    score -= 3; signals.append(f"🚨 LIQ DRAIN: -{drain_pct:.0f}% since last scan!")
+                elif drain_pct >= 15:
+                    score -= 1; signals.append(f"⚠️ Liq dropping: -{drain_pct:.0f}% vs last scan")
+
+            # ── Signal 6: Market cap — tightened sweet spot (new) ────────────
+            if 300_000 <= market_cap <= 5_000_000:
+                score += 2; signals.append(f"🎯 MC ${market_cap/1e6:.2f}M (best 10x zone)")
+            elif 5_000_000 < market_cap <= 15_000_000:
+                score += 1; signals.append(f"🎯 MC ${market_cap/1e6:.2f}M (still has room)")
+            elif 150_000 <= market_cap < 300_000:
+                score += 1; signals.append(f"🎯 MC ${market_cap:,.0f} (early stage)")
+            elif 0 < market_cap < 150_000:
+                score -= 2; signals.append(f"⚠️ MC ${market_cap:,.0f} — too small, danger zone")
             elif market_cap > 100_000_000:
-                signals.append(f"📦 MC too large: ${market_cap/1e6:.1f}M (less upside)")
+                signals.append(f"📦 MC ${market_cap/1e6:.1f}M — too large for big moves")
 
-            # ── Signal 5: Buy pressure & honeypot detection ──────────────────
+            # ── Signal 7: Buy pressure + honeypot proxy ──────────────────────
             if sells_5m == 0 and buys_5m > 0:
-                score -= 2; signals.append(f"🚨 No sells detected: {buys_5m}B/0S (honeypot risk)")
+                score -= 2; signals.append(f"🚨 No sells: {buys_5m}B/0S (honeypot risk)")
             elif total_txns > 0:
                 buy_ratio = buys_5m / total_txns
                 if total_txns >= 100 and buy_ratio >= 0.65:
-                    score += 2; signals.append(f"💚 Strong buy pressure {buys_5m}B/{sells_5m}S ({buy_ratio*100:.0f}% buys)")
+                    score += 2; signals.append(f"💚 Strong buys: {buys_5m}B/{sells_5m}S ({buy_ratio*100:.0f}%)")
                 elif total_txns >= 30 and buy_ratio >= 0.55:
-                    score += 1; signals.append(f"👍 Buys dominant: {buys_5m}B/{sells_5m}S")
+                    score += 1; signals.append(f"👍 Buys lead: {buys_5m}B/{sells_5m}S")
 
-            # ── Signal 6: 1h momentum confirms 5m ──────────────────────────
+            # ── Signal 8: 1h confirmation ────────────────────────────────────
             if chg_1h >= 20:
                 score += 1; signals.append(f"📈 1h trend: +{chg_1h:.1f}% (confirmed)")
 
-            # ── Bonus: Fresh token (not too old, not too new) ───────────────
-            if 2 <= age_hours <= 48:
-                score += 1; signals.append(f"🕐 Fresh: {age_hours:.1f}h old")
+            # ── Bonus: Token age — prime window 6-48h (new: start at 6h) ────
+            if 6 <= age_hours <= 48:
+                score += 1; signals.append(f"🕐 Prime age: {age_hours:.1f}h old")
             elif age_hours < 1:
                 score -= 1; signals.append(f"🆕 Very new: {age_hours*60:.0f}min (unverified)")
 
@@ -536,10 +560,32 @@ class BreakoutScanner:
 
         print(f"  Total pairs collected: {len(all_pairs)}")
 
+        # ── Apply minimum quality filters ────────────────────────────────────
+        filtered = []
+        for pair in all_pairs:
+            liq = float(pair.get("liquidity", {}).get("usd", 0) or 0)
+            mc  = float(pair.get("marketCap", 0) or pair.get("fdv", 0) or 0)
+            ca  = pair.get("pairCreatedAt", 0)
+            age = (time.time() * 1000 - ca) / 3_600_000 if ca else 0
+            liq_mc = liq / mc if mc > 0 else 0
+            if age     < self.MIN_AGE_HOURS:    continue  # too new
+            if mc      < self.MIN_MARKET_CAP:   continue  # too small
+            if liq_mc  < self.MIN_LIQ_MC_RATIO: continue  # rug risk
+            filtered.append(pair)
+        print(f"  After quality filter (age>{self.MIN_AGE_HOURS}h MC>${self.MIN_MARKET_CAP/1e3:.0f}K liq/mc>{self.MIN_LIQ_MC_RATIO*100:.0f}%): {len(filtered)} / {len(all_pairs)}")
+        all_pairs = filtered
+
         # Score every pair
         results = []
+        new_liquidity_map = {}
         for pair in all_pairs:
-            breakout_score, breakout_signals = self.score_pair(pair)
+            pair_addr = pair.get("pairAddress", "")
+            prev_liq  = self._prev_liquidity.get(pair_addr)
+            breakout_score, breakout_signals = self.score_pair(pair, prev_liquidity=prev_liq)
+            # Track current liquidity for next scan's drain detection
+            cur_liq = float(pair.get("liquidity", {}).get("usd", 0) or 0)
+            if pair_addr:
+                new_liquidity_map[pair_addr] = cur_liq
 
             token_address = pair.get("baseToken", {}).get("address", "")
             chain = pair.get("chainId", "")
@@ -604,6 +650,9 @@ class BreakoutScanner:
                 "url":            pair.get("url", ""),
                 "scanned_at":     datetime.now().isoformat(),
             })
+
+        # Persist liquidity snapshot for next scan's drain detection
+        self._prev_liquidity.update(new_liquidity_map)
 
         results.sort(key=lambda x: x["score"], reverse=True)
 
