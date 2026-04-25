@@ -289,7 +289,12 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
       • <strong>Liq:</strong> Liquidity ($) — higher is safer<br>
       • <strong>MC:</strong> Market cap — sweet spot is $200K–$10M<br>
       • <strong>Vol:</strong> Trading volume in 5 min<br>
-      • <strong>B/S:</strong> Buys vs Sells — more buys = bullish
+      • <strong>B/S:</strong> Buys vs Sells — more buys = bullish<br><br>
+      <strong style="color:#c084fc">🕐 NEW FIELDS</strong><br>
+      • <strong style="color:#fbbf24">Age:</strong> How old the token pair is (e.g. <em>36m</em>, <em>4.8h</em>, <em>2d</em>). Prefer 2h–48h old tokens — fresh enough to still have upside, old enough to be real.<br>
+      • <strong style="color:#c084fc">TXNS:</strong> Total buy + sell transactions in the last 24 hours. Higher = more active community and real trading interest.<br>
+      • <strong>Vol/24h:</strong> 24-hour total trading volume in USD. Compare with 5m Vol to gauge how much of the daily volume is happening right now.<br>
+      • <strong style="color:#60a5fa">Makers:</strong> Unique wallet addresses that placed orders (shows — on free API). Higher = more distributed trading, less manipulation risk.
     </div>
   </div>
 
@@ -402,7 +407,7 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
       <div style="margin-top:8px;padding:8px 10px;background:rgba(34,197,94,0.08);border-left:3px solid #4ade80;border-radius:4px">
         <strong style="color:#4ade80">💡 Strategy Validation Tips</strong><br>
         • Paper trade for 1–2 weeks before going live.<br>
-        • Only buy when <strong>B ≥ 6 AND T ≥ 7</strong> — wait for both scores to agree.<br>
+        • Only buy when <strong>B ≥ 6 + RSI 55–75 + Vol Z &gt; 2</strong> — wait for all three to align.<br>
         • If your win rate stays above 50% after 20+ trades, the strategy is working.<br>
         • Trades persist after page refresh — your history is saved in your browser.
       </div>
