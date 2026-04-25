@@ -157,6 +157,7 @@ def _build_result(pair, score, signals, tech_score, tech_signals):
         "tech_score":   tech_score,
         "tech_signals": tech_signals,
         "token_address": token_address,
+        "pair_address":  pair.get("pairAddress", ""),
         "safety_score": 3,
         "is_safe":      None,
         "safety_flags": [],
@@ -216,6 +217,17 @@ def api_backtest():
         "done": state["backtest_done"],
         "results": state["backtest_results"],
     })
+
+@app.route("/api/price")
+@login_required
+def api_price():
+    chain = request.args.get("chain", "").strip()
+    pair  = request.args.get("pair",  "").strip()
+    if not chain or not pair:
+        return jsonify({"error": "chain and pair required"}), 400
+    data = scanner._get(f"{scanner.DEXSCREENER_BASE}/latest/dex/pairs/{chain}/{pair}")
+    p = (data or {}).get("pair") or {}
+    return jsonify({"price": float(p.get("priceUsd", 0) or 0)})
 
 @app.route("/api/status")
 @login_required

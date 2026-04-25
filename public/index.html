@@ -93,6 +93,29 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
 .safety-badge.risky{background:rgba(239,68,68,.2);color:#f87171;border:1px solid rgba(239,68,68,.3)}
 .safety-badge.unknown{background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid rgba(245,158,11,.3)}
 
+/* ── Buy button ── */
+.btn-buy{display:block;width:100%;margin-top:6px;padding:5px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:6px;color:#4ade80;font-size:10px;font-weight:800;cursor:pointer;text-align:center;transition:.15s}
+.btn-buy:hover{background:rgba(34,197,94,.28);border-color:#4ade80}
+.btn-buy:active{transform:scale(.97)}
+.btn-buy.bought{background:rgba(96,165,250,.15);border-color:rgba(96,165,250,.3);color:#60a5fa}
+
+/* ── Paper trades tab ── */
+.pt-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:14px}
+.pt-stat{background:#0c1220;border:1px solid #1a2540;border-radius:10px;padding:11px 13px}
+.pt-stat-label{font-size:10px;color:#475569;text-transform:uppercase;font-weight:700;margin-bottom:3px}
+.pt-stat-val{font-size:18px;font-weight:800}
+.positions-table{width:100%;border-collapse:collapse;font-size:12px}
+.positions-table th{padding:8px 10px;text-align:left;color:#475569;font-weight:700;text-transform:uppercase;font-size:10px;border-bottom:1px solid #1a2540;white-space:nowrap}
+.positions-table td{padding:9px 10px;border-bottom:1px solid #0d1525;vertical-align:middle}
+.positions-table tr:hover td{background:#0f1930}
+.pnl-pos{color:#4ade80;font-weight:800}
+.pnl-neg{color:#f87171;font-weight:800}
+.btn-close-pos{padding:3px 10px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:5px;color:#f87171;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;transition:.15s}
+.btn-close-pos:hover{background:rgba(239,68,68,.3)}
+.btn-reset{padding:5px 14px;background:#1a2540;border:none;border-radius:7px;color:#64748b;font-size:11px;font-weight:700;cursor:pointer;transition:.15s}
+.btn-reset:hover{color:#94a3b8;background:#243050}
+.pt-section-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#334155;margin:14px 0 8px}
+
 /* ── Backtest table ── */
 .bt-table{width:100%;border-collapse:collapse;font-size:12px}
 .bt-table th{padding:8px 12px;text-align:left;color:#475569;font-weight:700;text-transform:uppercase;font-size:10px;border-bottom:1px solid #1a2540}
@@ -118,6 +141,7 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
 <div class="tabs">
   <div class="tab active" onclick="switchTab('scanner')">🔍 Live Scanner</div>
   <div class="tab" onclick="switchTab('backtest')">📊 Backtest Results</div>
+  <div class="tab" onclick="switchTab('trades')">📈 Paper Trades</div>
   <div class="tab" onclick="switchTab('howto')">📖 How to Use</div>
 </div>
 
@@ -339,6 +363,45 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
     </div>
   </div>
 
+  <!-- Section 2c: Paper Trading Guide -->
+  <div class="now-card neutral">
+    <div class="now-label">Section 2c: Paper Trades Tab — How to Use It</div>
+    <div class="now-title">Test the Strategy Without Real Money</div>
+    <div style="margin-top:12px;font-size:12px;color:#94a3b8;line-height:1.9">
+
+      <strong style="color:#4ade80">What is Paper Trading?</strong><br>
+      Paper trading = pretend trading with virtual money. You click "Buy" at today's real price, and the scanner tracks your P&L live. No real crypto is bought — it's purely for testing whether our breakout signals work before you risk real money.<br><br>
+
+      <strong style="color:#c084fc">Step 1 — Open a Position</strong><br>
+      On the Live Scanner tab, find a token you want to track. Click the green <strong>📈 Buy $100 (Paper)</strong> button at the bottom of the card. It records that token's exact current price as your entry.<br><br>
+
+      <strong style="color:#c084fc">Step 2 — Watch the Paper Trades Tab</strong><br>
+      Go to <strong>📈 Paper Trades</strong>. You'll see:<br>
+      • <strong>Entry Price</strong> — what price you "bought" at<br>
+      • <strong>Current Price</strong> — live price (auto-updates every 30s via the scanner)<br>
+      • <strong>P&amp;L %</strong> — your profit or loss percentage<br>
+      • <strong>P&amp;L $</strong> — dollar gain/loss on the virtual $100<br>
+      • <strong>Time Held</strong> — how long since you opened the position<br><br>
+
+      <strong style="color:#c084fc">Step 3 — Close a Position</strong><br>
+      When you want to "sell", click the red <strong>Close</strong> button. The trade moves to Trade History with the final P&L recorded.<br><br>
+
+      <strong style="color:#c084fc">Step 4 — Analyse Your Stats</strong><br>
+      The summary row shows your overall:<br>
+      • <strong>Total P&amp;L</strong> — sum of all closed trade profits/losses<br>
+      • <strong>Win Rate</strong> — % of trades that were profitable<br>
+      • <strong>Closed Trades</strong> — total number of completed paper trades<br><br>
+
+      <div style="margin-top:8px;padding:8px 10px;background:rgba(34,197,94,0.08);border-left:3px solid #4ade80;border-radius:4px">
+        <strong style="color:#4ade80">💡 Strategy Validation Tips</strong><br>
+        • Paper trade for 1–2 weeks before going live.<br>
+        • Only buy when <strong>B ≥ 6 AND T ≥ 7</strong> — wait for both scores to agree.<br>
+        • If your win rate stays above 50% after 20+ trades, the strategy is working.<br>
+        • Trades persist after page refresh — your history is saved in your browser.
+      </div>
+    </div>
+  </div>
+
   <!-- Section 3: Scam Filter Explained -->
   <div class="now-card neutral">
     <div class="now-label">Section 3: The 5-Point Scam Filter (Use This!)</div>
@@ -413,6 +476,39 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
   </div>
 </div>
 
+<!-- ── TAB: Paper Trades ── -->
+<div class="tab-content" id="tab-trades">
+  <div class="now-card neutral" style="margin-bottom:0">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="now-label">Paper Trading Simulator</div>
+        <div class="now-title">Track Your Strategy · Virtual $100 Per Trade</div>
+        <div class="now-sub">Click "Buy $100" on any token card to open a position. P&L updates every 30s.</div>
+      </div>
+      <button class="btn-reset" onclick="resetAllTrades()">🗑 Reset All</button>
+    </div>
+  </div>
+  <div class="pt-summary" id="ptSummary"></div>
+  <div class="pt-section-label">Open Positions</div>
+  <div class="now-card neutral" style="padding:0;overflow:hidden">
+    <table class="positions-table"><thead>
+      <tr>
+        <th>Token</th><th>Chain</th><th>Entry</th><th>Current</th>
+        <th>P&L %</th><th>P&L $</th><th>Time Held</th><th>Action</th>
+      </tr>
+    </thead><tbody id="ptOpenBody"></tbody></table>
+  </div>
+  <div class="pt-section-label">Trade History</div>
+  <div class="now-card neutral" style="padding:0;overflow:hidden">
+    <table class="positions-table"><thead>
+      <tr>
+        <th>Token</th><th>Chain</th><th>Entry</th><th>Exit</th>
+        <th>P&L %</th><th>P&L $</th><th>Result</th><th>Date</th>
+      </tr>
+    </thead><tbody id="ptClosedBody"></tbody></table>
+  </div>
+</div>
+
 </main>
 
 <script>
@@ -422,12 +518,13 @@ let btResults = [];
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 function switchTab(id) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    const ids = ['scanner', 'backtest', 'howto'];
+    const ids = ['scanner', 'backtest', 'trades', 'howto'];
     t.classList.toggle('active', ids[i] === id);
   });
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-' + id).classList.add('active');
   if (id === 'backtest') pollBacktest();
+  if (id === 'trades')   renderPositions();
 }
 
 // ── SSE Stream ────────────────────────────────────────────────────────────────
@@ -443,6 +540,7 @@ src.onmessage = e => {
     scanData = msg.data || [];
     document.getElementById('ts').textContent = 'Updated ' + new Date(msg.ts).toLocaleTimeString();
     renderScanner(scanData, msg.scan_count);
+    updatePositionPrices(scanData);
   }
 };
 
@@ -572,6 +670,7 @@ function renderGrid(tokens) {
         ${r.safety_flags?.length > 0 ? '<br><strong style="color:#fbbf24">' + r.safety_flags.slice(0, 1).join('<br>') + '</strong>' : ''}
       </div>
       ${r.url ? `<a class="tc-link" href="${r.url}" target="_blank" onclick="event.stopPropagation()">Open DexScreener ↗</a>` : ''}
+      <button class="btn-buy" onclick='openPosition(event,${JSON.stringify(r).replace(/'/g,"&#39;")})'>📈 Buy $100 (Paper)</button>
     </div>`;
   }).join('');
 }
@@ -640,6 +739,174 @@ function clearSearch() {
     if (e.key === 'Enter') doSearch();
   });
 });
+
+// ── Paper Trading ─────────────────────────────────────────────────────────────
+const PT_KEY = 'meme_paper_trades';
+
+function getPositions() {
+  try { return JSON.parse(localStorage.getItem(PT_KEY)) || {open:[], closed:[]}; }
+  catch { return {open:[], closed:[]}; }
+}
+function savePositions(t) { localStorage.setItem(PT_KEY, JSON.stringify(t)); }
+
+function openPosition(event, r) {
+  event.stopPropagation();
+  if (!r.price_usd || r.price_usd <= 0) { alert('Price not available for this token.'); return; }
+  const trades = getPositions();
+  trades.open.push({
+    id:            crypto.randomUUID(),
+    symbol:        r.symbol,
+    name:          r.name,
+    chain:         r.chain,
+    dex:           r.dex,
+    pair_address:  r.pair_address || '',
+    token_address: r.token_address || '',
+    entry_price:   r.price_usd,
+    current_price: r.price_usd,
+    entry_time:    new Date().toISOString(),
+    virtual_usd:   100,
+    url:           r.url || '',
+  });
+  savePositions(trades);
+  const btn = event.currentTarget;
+  btn.textContent = '✅ Opened!';
+  btn.classList.add('bought');
+  setTimeout(() => { btn.textContent = '📈 Buy $100 (Paper)'; btn.classList.remove('bought'); }, 2000);
+  if (document.getElementById('tab-trades').classList.contains('active')) renderPositions();
+}
+
+function closePosition(id) {
+  const trades = getPositions();
+  const idx = trades.open.findIndex(p => p.id === id);
+  if (idx === -1) return;
+  const pos = trades.open[idx];
+  const { pct, usd_val } = calcPnl(pos.entry_price, pos.current_price, pos.virtual_usd);
+  trades.closed.unshift({
+    id:          pos.id,
+    symbol:      pos.symbol,
+    chain:       pos.chain,
+    entry_price: pos.entry_price,
+    exit_price:  pos.current_price,
+    entry_time:  pos.entry_time,
+    exit_time:   new Date().toISOString(),
+    pnl_pct:     pct,
+    pnl_usd:     usd_val,
+    virtual_usd: pos.virtual_usd,
+    url:         pos.url || '',
+  });
+  trades.open.splice(idx, 1);
+  savePositions(trades);
+  renderPositions();
+}
+
+function resetAllTrades() {
+  if (!confirm('Reset all paper trades? This cannot be undone.')) return;
+  localStorage.removeItem(PT_KEY);
+  renderPositions();
+}
+
+function calcPnl(entry, current, usd) {
+  const pct     = entry > 0 ? ((current - entry) / entry) * 100 : 0;
+  const usd_val = (pct / 100) * usd;
+  return { pct, usd_val };
+}
+
+function timeAgo(isoStr) {
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 60) return m + 'm';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ' + (m % 60) + 'm';
+  return Math.floor(h / 24) + 'd';
+}
+
+function renderPositions() {
+  const trades = getPositions();
+  const open   = trades.open   || [];
+  const closed = trades.closed || [];
+
+  // Summary stats
+  const totalPnlUsd = [...open.map(p => calcPnl(p.entry_price, p.current_price, p.virtual_usd).usd_val),
+                        ...closed.map(p => p.pnl_usd)].reduce((a, b) => a + b, 0);
+  const wins      = closed.filter(p => p.pnl_pct >= 0).length;
+  const winRate   = closed.length ? Math.round(wins / closed.length * 100) : 0;
+  const totalTrades = closed.length;
+
+  document.getElementById('ptSummary').innerHTML = `
+    <div class="pt-stat"><div class="pt-stat-label">Total P&amp;L</div>
+      <div class="pt-stat-val ${totalPnlUsd >= 0 ? 'v-g' : 'v-r'}">
+        ${totalPnlUsd >= 0 ? '+' : ''}$${Math.abs(totalPnlUsd).toFixed(2)}</div></div>
+    <div class="pt-stat"><div class="pt-stat-label">Win Rate</div>
+      <div class="pt-stat-val ${winRate >= 50 ? 'v-g' : 'v-r'}">${winRate}%</div></div>
+    <div class="pt-stat"><div class="pt-stat-label">Closed Trades</div>
+      <div class="pt-stat-val v-b">${totalTrades}</div></div>
+    <div class="pt-stat"><div class="pt-stat-label">Open Positions</div>
+      <div class="pt-stat-val v-p">${open.length}</div></div>`;
+
+  // Open positions
+  const openBody = document.getElementById('ptOpenBody');
+  if (!open.length) {
+    openBody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#334155;padding:20px">
+      No open positions. Click "Buy $100 (Paper)" on any token card to start tracking.</td></tr>`;
+  } else {
+    openBody.innerHTML = open.map(pos => {
+      const { pct, usd_val } = calcPnl(pos.entry_price, pos.current_price, pos.virtual_usd);
+      const cls = pct >= 0 ? 'pnl-pos' : 'pnl-neg';
+      const sign = pct >= 0 ? '+' : '';
+      return `<tr>
+        <td><strong>${pos.symbol}</strong><br><span style="color:#475569;font-size:10px">${pos.name || ''}</span></td>
+        <td>${pos.chain?.toUpperCase()}</td>
+        <td style="font-family:monospace">$${pos.entry_price?.toFixed(8)}</td>
+        <td style="font-family:monospace">$${pos.current_price?.toFixed(8)}</td>
+        <td class="${cls}">${sign}${pct.toFixed(2)}%</td>
+        <td class="${cls}">${sign}$${Math.abs(usd_val).toFixed(2)}</td>
+        <td style="color:#64748b">${timeAgo(pos.entry_time)}</td>
+        <td><button class="btn-close-pos" onclick="closePosition('${pos.id}')">Close</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Closed trades
+  const closedBody = document.getElementById('ptClosedBody');
+  if (!closed.length) {
+    closedBody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#334155;padding:20px">
+      No closed trades yet.</td></tr>`;
+  } else {
+    closedBody.innerHTML = closed.map(t => {
+      const cls = t.pnl_pct >= 0 ? 'pnl-pos' : 'pnl-neg';
+      const sign = t.pnl_pct >= 0 ? '+' : '';
+      const result = t.pnl_pct >= 0 ? '✅ Win' : '❌ Loss';
+      const date = new Date(t.exit_time).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      return `<tr>
+        <td><strong>${t.symbol}</strong></td>
+        <td>${t.chain?.toUpperCase()}</td>
+        <td style="font-family:monospace">$${t.entry_price?.toFixed(8)}</td>
+        <td style="font-family:monospace">$${t.exit_price?.toFixed(8)}</td>
+        <td class="${cls}">${sign}${t.pnl_pct?.toFixed(2)}%</td>
+        <td class="${cls}">${sign}$${Math.abs(t.pnl_usd).toFixed(2)}</td>
+        <td>${result}</td>
+        <td style="color:#64748b">${date}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+function updatePositionPrices(scanData) {
+  const trades = getPositions();
+  if (!trades.open.length) return;
+  let updated = false;
+  trades.open.forEach(pos => {
+    const match = scanData.find(r => r.pair_address && r.pair_address === pos.pair_address);
+    if (match && match.price_usd > 0) {
+      pos.current_price = match.price_usd;
+      updated = true;
+    }
+  });
+  if (updated) {
+    savePositions(trades);
+    if (document.getElementById('tab-trades').classList.contains('active')) renderPositions();
+  }
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n) {

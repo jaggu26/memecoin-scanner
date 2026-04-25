@@ -497,6 +497,7 @@ class BreakoutScanner:
                 "tech_score":    tech_score,
                 "tech_signals":  tech_signals,
                 # Safety
+                "pair_address":  pair.get("pairAddress", ""),
                 "token_address": token_address,
                 "safety_score":  safety_info.get("safety_score", 3),
                 "is_safe":       safety_info.get("is_safe"),
