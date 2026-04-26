@@ -21,6 +21,13 @@ class BreakoutScanner:
     MIN_MARKET_CAP   = 500_000  # Skip tokens with MC below $500K
     MIN_LIQ_MC_RATIO = 0.03     # Skip if liquidity < 3% of market cap (rug risk)
 
+    # ── Volume & activity filters (stops ghost trades / wash trading) ─────────
+    MIN_VOL_5M       = 50_000   # 5m volume must be ≥ $50K (real activity)
+    MIN_VOL_MC_RATIO = 0.025    # 5m vol must be ≥ 2.5% of MC (meaningful move)
+    MIN_TXNS_5M      = 120      # At least 120 transactions in 5m (community interest)
+    MIN_AVG_TRADE    = 50       # Avg trade size ≥ $50 (no dust trades)
+    MAX_AVG_TRADE    = 800      # Avg trade size ≤ $800 (no single-whale faking volume)
+
     # Chain ID mapping: DexScreener → GoPlus
     CHAIN_MAP = {
         "ethereum": "1",
@@ -563,16 +570,28 @@ class BreakoutScanner:
         # ── Apply minimum quality filters ────────────────────────────────────
         filtered = []
         for pair in all_pairs:
-            liq = float(pair.get("liquidity", {}).get("usd", 0) or 0)
-            mc  = float(pair.get("marketCap", 0) or pair.get("fdv", 0) or 0)
-            ca  = pair.get("pairCreatedAt", 0)
-            age = (time.time() * 1000 - ca) / 3_600_000 if ca else 0
-            liq_mc = liq / mc if mc > 0 else 0
-            if age     < self.MIN_AGE_HOURS:    continue  # too new
-            if mc      < self.MIN_MARKET_CAP:   continue  # too small
-            if liq_mc  < self.MIN_LIQ_MC_RATIO: continue  # rug risk
+            liq    = float(pair.get("liquidity", {}).get("usd", 0) or 0)
+            mc     = float(pair.get("marketCap", 0) or pair.get("fdv", 0) or 0)
+            vol5m  = float(pair.get("volume", {}).get("m5", 0) or 0)
+            ca     = pair.get("pairCreatedAt", 0)
+            age    = (time.time() * 1000 - ca) / 3_600_000 if ca else 0
+            txns5m = pair.get("txns", {}).get("m5", {})
+            total_txns = int(txns5m.get("buys", 0) or 0) + int(txns5m.get("sells", 0) or 0)
+            avg_trade  = vol5m / total_txns if total_txns > 0 else 0
+
+            liq_mc   = liq   / mc   if mc   > 0 else 0
+            vol_mc   = vol5m / mc   if mc   > 0 else 0
+
+            if age       < self.MIN_AGE_HOURS:    continue  # too new
+            if mc        < self.MIN_MARKET_CAP:   continue  # too small
+            if liq_mc    < self.MIN_LIQ_MC_RATIO: continue  # rug risk
+            if vol5m     < self.MIN_VOL_5M:       continue  # ghost / no real volume
+            if vol_mc    < self.MIN_VOL_MC_RATIO: continue  # volume not meaningful vs MC
+            if total_txns < self.MIN_TXNS_5M:    continue  # too few traders (catches 2B/2S)
+            if avg_trade < self.MIN_AVG_TRADE:    continue  # dust trades / wash trading
+            if avg_trade > self.MAX_AVG_TRADE:    continue  # single whale faking volume
             filtered.append(pair)
-        print(f"  After quality filter (age>{self.MIN_AGE_HOURS}h MC>${self.MIN_MARKET_CAP/1e3:.0f}K liq/mc>{self.MIN_LIQ_MC_RATIO*100:.0f}%): {len(filtered)} / {len(all_pairs)}")
+        print(f"  After quality filter: {len(filtered)} / {len(all_pairs)} passed")
         all_pairs = filtered
 
         # Score every pair
@@ -611,6 +630,12 @@ class BreakoutScanner:
             txns_24h   = int(txns_h24.get("buys", 0) or 0) + int(txns_h24.get("sells", 0) or 0)
             makers     = int(pair.get("makers", 0) or 0)
 
+            # Buy ratio % (buys / total txns in 5m — proxy for dollar buy pressure)
+            buys_5m_n  = int(pair.get("txns", {}).get("m5", {}).get("buys",  0) or 0)
+            sells_5m_n = int(pair.get("txns", {}).get("m5", {}).get("sells", 0) or 0)
+            total_5m_n = buys_5m_n + sells_5m_n
+            buy_ratio_pct = round(buys_5m_n / total_5m_n * 100, 1) if total_5m_n > 0 else 0
+
             results.append({
                 "name":           pair.get("baseToken", {}).get("name", "?"),
                 "symbol":         pair.get("baseToken", {}).get("symbol", "?"),
@@ -624,8 +649,9 @@ class BreakoutScanner:
                 "vol_24h":        v24h,
                 "liquidity":      float(pair.get("liquidity", {}).get("usd", 0) or 0),
                 "market_cap":     float(pair.get("marketCap", 0) or pair.get("fdv", 0) or 0),
-                "buys_5m":        int(pair.get("txns", {}).get("m5", {}).get("buys", 0) or 0),
-                "sells_5m":       int(pair.get("txns", {}).get("m5", {}).get("sells", 0) or 0),
+                "buys_5m":        buys_5m_n,
+                "sells_5m":       sells_5m_n,
+                "buy_ratio_pct":  buy_ratio_pct,
                 "age_hours":      round(age_hours, 1),
                 "txns_24h":       txns_24h,
                 "makers":         makers,

@@ -270,7 +270,11 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
       <strong style="color:#fbbf24">🔒 Minimum Quality Filters (pre-screened before scoring):</strong><br>
       • <strong>Age &gt; 6 hours</strong> — tokens younger than 6h are too unverified<br>
       • <strong>Market Cap &gt; $500K</strong> — micro-caps below $500K are extreme risk<br>
-      • <strong>Liquidity ≥ 3% of MC</strong> — lower ratio = high rug pull risk, auto-excluded
+      • <strong>Liquidity ≥ 3% of MC</strong> — lower ratio = high rug pull risk, auto-excluded<br>
+      • <strong>5m Volume ≥ $50K</strong> — filters ghost tokens with no real trading activity<br>
+      • <strong>5m Volume ≥ 2.5% of MC</strong> — volume must be meaningful relative to market size<br>
+      • <strong>Transactions ≥ 120 in 5m</strong> — prevents 2-buy/2-sell coins from ranking (real problem!)<br>
+      • <strong>Avg trade size $50–$800</strong> — filters dust trades and single-whale volume manipulation
     </div>
   </div>
 
@@ -293,7 +297,7 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
       • <strong>Liq:</strong> Liquidity ($) — scored as % of MC now (not absolute); ≥5% = safe<br>
       • <strong>MC:</strong> Market cap — sweet spot is $300K–$5M (tightened from old $200K–$10M)<br>
       • <strong>Vol:</strong> Trading volume in 5 min — compared vs 1h rolling avg (not just 24h ratio)<br>
-      • <strong>B/S:</strong> Buys vs Sells — more buys = bullish<br><br>
+      • <strong style="color:#4ade80">Buy%:</strong> Buy transactions as % of all 5m transactions. <span style="color:#4ade80">≥65% = strong buyers</span>, <span style="color:#fbbf24">50–65% = mild buy lean</span>, <span style="color:#f87171">&lt;50% = sellers winning</span>. Raw counts shown in small text next to it.<br><br>
       <strong style="color:#c084fc">🕐 NEW FIELDS</strong><br>
       • <strong style="color:#fbbf24">Age:</strong> How old the token pair is (e.g. <em>6h</em>, <em>4.8h</em>, <em>2d</em>). Prime window is 6h–48h — pre-filtered below 6h automatically.<br>
       • <strong style="color:#c084fc">TXNS:</strong> Total buy + sell transactions in the last 24 hours. Higher = more active community and real trading interest.<br>
@@ -724,7 +728,7 @@ function renderGrid(tokens) {
         <div>Liq: <span>$${fmt(r.liquidity)}</span></div>
         <div>MC: <span>$${fmt(r.market_cap)}</span></div>
         <div>Vol/5m: <span>$${fmt(r.vol_5m)}</span></div>
-        <div>B/S: <span>${r.buys_5m}/${r.sells_5m}</span></div>
+        <div>Buy%: <span style="color:${r.buy_ratio_pct>=65?'#4ade80':r.buy_ratio_pct>=50?'#fbbf24':'#f87171'};font-weight:700">${r.buy_ratio_pct}%</span> <span style="color:#64748b;font-size:9px">(${r.buys_5m}B/${r.sells_5m}S)</span></div>
         <div>Age: <span style="color:#fbbf24">${fmtAge(r.age_hours)}</span></div>
         <div>TXNS: <span style="color:#c084fc">${r.txns_24h > 0 ? r.txns_24h.toLocaleString() : '—'}</span></div>
         <div>Vol/24h: <span>$${fmt(r.vol_24h)}</span></div>
