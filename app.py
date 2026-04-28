@@ -243,6 +243,18 @@ def api_debug():
         "ts": datetime.now().isoformat(),
     })
 
+@app.route("/api/config")
+@login_required
+def api_config():
+    """Return the strict filter thresholds so the frontend toggle can apply them."""
+    return jsonify({
+        "strict_min_vol_5m":       scanner.STRICT_MIN_VOL_5M,
+        "strict_min_vol_mc_ratio": scanner.STRICT_MIN_VOL_MC_RATIO,
+        "strict_min_txns_5m":      scanner.STRICT_MIN_TXNS_5M,
+        "strict_min_avg_trade":    scanner.STRICT_MIN_AVG_TRADE,
+        "strict_max_avg_trade":    scanner.STRICT_MAX_AVG_TRADE,
+    })
+
 @app.route("/api/status")
 @login_required
 def api_status():

@@ -83,6 +83,10 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
 .btn-search:hover{opacity:.85}
 .btn-clear{padding:9px 12px;background:#1a2540;color:#64748b;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;transition:.15s}
 .btn-clear:hover{color:#94a3b8;background:#243050}
+.btn-volfil{padding:9px 12px;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:.15s}
+.btn-volfil.on{background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.4);color:#fbbf24}
+.btn-volfil.off{background:rgba(100,116,139,.1);border:1px solid #1e2d45;color:#64748b}
+.btn-volfil:hover{opacity:.8}
 .search-status{font-size:11px;color:#475569;margin-top:8px;min-height:16px}
 
 /* ── Strategy values grid ── */
@@ -203,6 +207,7 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
         </select>
       </div>
       <div class="search-actions">
+        <button class="btn-volfil on" id="volFilterBtn" onclick="toggleVolFilter()" title="Toggle strict volume/txns filter">⚡ Vol Filter: ON</button>
         <button class="btn-search" onclick="doSearch()">Search</button>
         <button class="btn-clear" onclick="clearSearch()">✕</button>
       </div>
@@ -260,21 +265,34 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
     <div class="now-label">Section 1: What is Memecoin Scanner?</div>
     <div class="now-title">Automated Breakout Detection + Scam Filter</div>
     <div style="margin-top:12px;font-size:12px;color:#94a3b8;line-height:2">
-      This tool scans <strong>100+ memecoins every 30 seconds</strong> to find:<br><br>
+      This tool scans <strong>200+ memecoins every 30 seconds</strong> to find:<br><br>
       ✅ <strong>Breakouts:</strong> Tokens with sudden volume spikes + price momentum<br>
       ✅ <strong>Safety:</strong> Tokens that are NOT rug pulls, honeypots, or scams<br>
       ✅ <strong>Timing:</strong> Real-time alerts when price momentum is strongest<br><br>
       <strong>Live data from:</strong> DexScreener (prices, volume) + GoPlus (security checks)<br>
-      <strong>Scanned every:</strong> 30 seconds (auto-refresh)<br>
+      <strong>Scanned every:</strong> 30 seconds (auto-refresh via WebSocket + REST)<br>
       <strong>Perfect for:</strong> Quick memecoin swing trades (5min–7day holds)<br><br>
-      <strong style="color:#fbbf24">🔒 Minimum Quality Filters (pre-screened before scoring):</strong><br>
-      • <strong>Age &gt; 6 hours</strong> — tokens younger than 6h are too unverified<br>
-      • <strong>Market Cap &gt; $500K</strong> — micro-caps below $500K are extreme risk<br>
-      • <strong>Liquidity ≥ 3% of MC</strong> — lower ratio = high rug pull risk, auto-excluded<br>
+
+      <strong style="color:#fbbf24">🔒 Basic Quality Filters (always applied — cannot be toggled off):</strong><br>
+      • <strong>Age &gt; 1 hour</strong> — tokens younger than 1h are too unverified<br>
+      • <strong>Market Cap &gt; $50K</strong> — extreme micro-caps excluded<br>
+      • <strong>Liquidity ≥ 0.5% of MC</strong> — minimum to avoid outright rugs<br><br>
+
+      <strong style="color:#fbbf24">⚡ Strict Volume Filter (toggle ON/OFF with the button next to Search):</strong><br>
       • <strong>5m Volume ≥ $50K</strong> — filters ghost tokens with no real trading activity<br>
       • <strong>5m Volume ≥ 2.5% of MC</strong> — volume must be meaningful relative to market size<br>
-      • <strong>Transactions ≥ 120 in 5m</strong> — prevents 2-buy/2-sell coins from ranking (real problem!)<br>
-      • <strong>Avg trade size $50–$800</strong> — filters dust trades and single-whale volume manipulation
+      • <strong>Transactions ≥ 120 in 5m</strong> — prevents 2-buy/2-sell coins from ranking<br>
+      • <strong>Avg trade size $50–$800</strong> — filters dust trades and single-whale manipulation<br><br>
+
+      <strong style="color:#60a5fa">❓ Why am I seeing 0 or 1 token?</strong><br>
+      • <strong>Vol Filter is ON</strong> and the market is quiet — crypto markets have low 5m activity
+        during off-peak hours (e.g. Asian daytime, early morning). The strict thresholds
+        ($50K vol, 120 txns in 5 minutes) are calibrated for active pump events.<br>
+      • <strong>Fix:</strong> Click <strong style="color:#fbbf24">⚡ Vol Filter: ON</strong> to toggle it OFF.
+        You will see all 200+ tokens the scanner found. The tokens still show their
+        Breakout Score — low-activity periods simply won't produce B:8+ breakouts.<br>
+      • During US evening hours or active memecoin seasons, Vol Filter ON will show
+        many real breakouts automatically.
     </div>
   </div>
 
@@ -299,7 +317,7 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
       • <strong>Vol:</strong> Trading volume in 5 min — compared vs 1h rolling avg (not just 24h ratio)<br>
       • <strong style="color:#4ade80">Buy%:</strong> Buy transactions as % of all 5m transactions. <span style="color:#4ade80">≥65% = strong buyers</span>, <span style="color:#fbbf24">50–65% = mild buy lean</span>, <span style="color:#f87171">&lt;50% = sellers winning</span>. Raw counts shown in small text next to it.<br><br>
       <strong style="color:#c084fc">🕐 NEW FIELDS</strong><br>
-      • <strong style="color:#fbbf24">Age:</strong> How old the token pair is (e.g. <em>6h</em>, <em>4.8h</em>, <em>2d</em>). Prime window is 6h–48h — pre-filtered below 6h automatically.<br>
+      • <strong style="color:#fbbf24">Age:</strong> How old the token pair is (e.g. <em>6h</em>, <em>4.8h</em>, <em>2d</em>). Prime window is 6h–48h. Pre-filter removes tokens under 1h.<br>
       • <strong style="color:#c084fc">TXNS:</strong> Total buy + sell transactions in the last 24 hours. Higher = more active community and real trading interest.<br>
       • <strong>Vol/24h:</strong> 24-hour total trading volume in USD. Compare with 5m Vol to gauge how much of the daily volume is happening right now.<br>
       • <strong style="color:#60a5fa">Makers:</strong> Unique wallet addresses that placed orders (shows — on free API). Higher = more distributed trading, less manipulation risk.
@@ -340,7 +358,7 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
       Price also up +20%+ over the last 1 hour<br><br>
 
       <strong style="color:#22c55e">+1 pt — Prime Age Window</strong><br>
-      Token is 6–48 hours old (pre-filter removes tokens under 6h automatically)<br><br>
+      Token is 6–48 hours old (pre-filter removes tokens under 1h; prime window is 6–48h)<br><br>
 
       <strong style="color:#ef4444">−2 pts — Honeypot Warning</strong><br>
       Zero sells in 5m while buys exist (can't sell = honeypot risk)<br><br>
@@ -352,7 +370,7 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
       Liquidity dropped 30%+ since the last scan — possible rug pull in progress. Token auto-penalised.<br><br>
 
       <strong style="color:#ef4444">−3 pts — Dangerous Liquidity Ratio</strong><br>
-      Liquidity under 3% of MC — already filtered out before scoring, but shown as red flag if borderline
+      Liquidity under 0.5% of MC — already filtered out before scoring; strict Vol Filter also requires 2.5%+ vol/MC
     </div>
   </div>
 
@@ -577,7 +595,51 @@ main{max-width:1100px;margin:0 auto;padding:16px 14px;display:flex;flex-directio
 
 <script>
 let scanData  = [];
+let lastScanCount = 0;
 let btResults = [];
+
+// ── Vol Filter toggle ─────────────────────────────────────────────────────────
+let volFilterOn = true;   // default: strict filter ON
+// Strict filter thresholds (server keeps these, but defaults here as fallback)
+let STRICT = { minVol5m: 50000, minVolMcRatio: 0.025, minTxns5m: 120, minAvgTrade: 50, maxAvgTrade: 800 };
+fetch('/api/config').then(r => r.json()).then(cfg => {
+  STRICT = {
+    minVol5m:       cfg.strict_min_vol_5m       ?? 50000,
+    minVolMcRatio:  cfg.strict_min_vol_mc_ratio ?? 0.025,
+    minTxns5m:      cfg.strict_min_txns_5m      ?? 120,
+    minAvgTrade:    cfg.strict_min_avg_trade     ?? 50,
+    maxAvgTrade:    cfg.strict_max_avg_trade     ?? 800,
+  };
+}).catch(() => {});
+
+function applyVolFilter(tokens) {
+  if (!volFilterOn) return tokens;
+  return tokens.filter(r => {
+    const txns     = (r.buys_5m || 0) + (r.sells_5m || 0);
+    const avgTrade = txns > 0 ? (r.vol_5m || 0) / txns : 0;
+    const volMc    = r.market_cap > 0 ? (r.vol_5m || 0) / r.market_cap : 0;
+    if ((r.vol_5m    || 0) < STRICT.minVol5m)       return false;
+    if (volMc              < STRICT.minVolMcRatio)   return false;
+    if (txns               < STRICT.minTxns5m)       return false;
+    if (avgTrade           < STRICT.minAvgTrade)     return false;
+    if (avgTrade > 0 && avgTrade > STRICT.maxAvgTrade) return false;
+    return true;
+  });
+}
+
+function toggleVolFilter() {
+  volFilterOn = !volFilterOn;
+  const btn = document.getElementById('volFilterBtn');
+  if (volFilterOn) {
+    btn.textContent = '⚡ Vol Filter: ON';
+    btn.className   = 'btn-volfil on';
+  } else {
+    btn.textContent = '⚡ Vol Filter: OFF';
+    btn.className   = 'btn-volfil off';
+  }
+  // Re-render stats + grid with current scan data
+  if (!searchActive) renderScanner(scanData, lastScanCount);
+}
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 function switchTab(id) {
@@ -602,6 +664,7 @@ src.onmessage = e => {
   const msg = JSON.parse(e.data);
   if (msg.type === 'scan') {
     scanData = msg.data || [];
+    lastScanCount = msg.scan_count;
     document.getElementById('ts').textContent = 'Updated ' + new Date(msg.ts).toLocaleTimeString();
     renderScanner(scanData, msg.scan_count);
     updatePositionPrices(scanData);
@@ -611,10 +674,13 @@ src.onmessage = e => {
 // ── Render scanner ────────────────────────────────────────────────────────────
 function renderScanner(data, scanCount) {
   document.getElementById('statCount').textContent = scanCount || '—';
-  document.getElementById('statTotal').textContent = data.length;
 
-  const breakouts = data.filter(r => r.is_breakout);
-  const strongs   = data.filter(r => r.is_strong);
+  // Apply vol filter for stats and display
+  const filtered  = applyVolFilter(data);
+  document.getElementById('statTotal').textContent = filtered.length;
+
+  const breakouts = filtered.filter(r => r.is_breakout);
+  const strongs   = filtered.filter(r => r.is_strong);
   document.getElementById('statBreak').textContent  = breakouts.length;
   document.getElementById('statStrong').textContent = strongs.length;
 
@@ -636,15 +702,19 @@ function renderScanner(data, scanCount) {
         ${best.url ? `<a href="${best.url}" target="_blank" class="pill p-muted" style="text-decoration:none">View on DexScreener ↗</a>` : ''}
       </div>`;
   } else {
+    const rawCount = data.length;
+    const msg = volFilterOn
+      ? `Vol Filter ON — ${rawCount} total tokens scanned, ${filtered.length} pass strict filter`
+      : `Scanning ${rawCount} tokens. Auto-refreshes every 30 seconds.`;
     card.className = 'now-card neutral';
     card.innerHTML = `
       <div class="now-label">Best Breakout Right Now</div>
       <div class="now-title" style="color:#475569">No strong breakout detected</div>
-      <div class="now-sub">Scanning ${data.length} tokens. Auto-refreshes every 30 seconds.</div>`;
+      <div class="now-sub">${msg}</div>`;
   }
 
   // Don't override grid if user has an active search
-  if (!searchActive) renderGrid(data);
+  if (!searchActive) renderGrid(filtered);
 }
 
 // ── Backtest polling ──────────────────────────────────────────────────────────
